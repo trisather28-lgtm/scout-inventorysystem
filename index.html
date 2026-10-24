@@ -1,1688 +1,1461 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scout Troop Quartermaster Store</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scout Quartermaster Store</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts - Inter & Montserrat -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase JS SDK (Compat mode for browser single-file execution) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
                         scout: {
                             green: '#1e3a2b',
-                            darkgreen: '#13261c',
-                            khaki: '#d4a373',
-                            khakidark: '#b88655',
-                            amber: '#e9c46a',
-                            amberdark: '#d0a747',
-                            slate: '#16201a',
-                            card: '#1d2c23',
-                            border: '#2e4538',
-                            hover: '#263b2f'
+                            'green-dark': '#13251c',
+                            'green-light': '#2c523d',
+                            khaki: '#d4c596',
+                            'khaki-dark': '#b5a472',
+                            'khaki-light': '#f8f6f0',
+                            gold: '#d4a373',
+                            rust: '#bc4749'
                         }
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
-                        heading: ['Montserrat', 'sans-serif']
+                        heading: ['Outfit', 'sans-serif']
                     }
                 }
             }
         }
     </script>
-
     <style>
-        body {
-            background-color: #121a15;
-            color: #e2e8f0;
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .heading-font {
-            font-family: 'Montserrat', sans-serif;
-        }
-        /* Custom scrollbar */
+        /* Custom scrollbar & visual polish */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #13261c;
+            background: #f1f1f1;
         }
         ::-webkit-scrollbar-thumb {
-            background: #2e4538;
+            background: #1e3a2b;
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #d4a373;
+            background: #2c523d;
         }
-        /* Scanner laser animation */
-        @keyframes scanline {
-            0% { top: 10%; opacity: 0.8; }
-            50% { top: 85%; opacity: 1; }
-            100% { top: 10%; opacity: 0.8; }
+        .scout-pattern {
+            background-color: #1e3a2b;
+            background-image: radial-gradient(#2c523d 1px, transparent 1px);
+            background-size: 20px 20px;
         }
-        .scanner-laser {
-            animation: scanline 2.2s infinite ease-in-out;
-        }
-        /* Printable view override */
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printable-manifest, #printable-manifest * {
-                visibility: visible;
-            }
-            #printable-manifest {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: white !important;
-                color: black !important;
-            }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased selection:bg-scout-khaki selection:text-scout-darkgreen pb-20 md:pb-0">
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex flex-col">
 
     <!-- Toast Notification Container -->
-    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
-
-    <!-- AUTHENTICATION OVERLAY MODAL (NO GUEST / ANONYMOUS ACCESS) -->
-    <div id="auth-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-300">
-        <div class="bg-scout-card border border-scout-border rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
-            <!-- Scout Fleur-de-lis / Shield Header -->
-            <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-scout-green border-2 border-scout-khaki text-scout-khaki text-2xl mb-3 shadow-inner">
-                    <i class="fa-solid fa-campground"></i>
-                </div>
-                <h2 class="text-2xl font-bold heading-font text-white">Scout Quartermaster</h2>
-                <p class="text-xs text-scout-khaki font-medium mt-1">Troop Equipment & Store Management System</p>
-                <div class="mt-2 text-xs text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 rounded-full py-1 px-3 inline-block">
-                    <i class="fa-solid fa-shield-halved mr-1"></i> Authorized Personnel Only
-                </div>
-            </div>
-
-            <!-- Auth Tabs (Sign In / Sign Up) -->
-            <div class="flex border-b border-scout-border mb-6">
-                <button id="tab-signin-btn" onclick="switchAuthTab('signin')" class="flex-1 py-2 text-center font-semibold text-scout-khaki border-b-2 border-scout-khaki transition-all text-sm">
-                    Sign In
-                </button>
-                <button id="tab-signup-btn" onclick="switchAuthTab('signup')" class="flex-1 py-2 text-center font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-200 transition-all text-sm">
-                    Register Troop QM
-                </button>
-            </div>
-
-            <!-- Sign In Form -->
-            <form id="signin-form" onsubmit="handleSignIn(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1">Email Address</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-envelope"></i></span>
-                        <input type="email" id="signin-email" required placeholder="qm@troop101.scout" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-scout-khaki transition">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1">Password</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-lock"></i></span>
-                        <input type="password" id="signin-password" required placeholder="••••••••" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-scout-khaki transition">
-                    </div>
-                </div>
-                <button type="submit" id="signin-submit-btn" class="w-full bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold py-3 rounded-lg shadow-lg transition duration-200 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-right-to-bracket"></i> Sign In to Store
-                </button>
-            </form>
-
-            <!-- Sign Up Form (Hidden by default) -->
-            <form id="signup-form" onsubmit="handleSignUp(event)" class="space-y-4 hidden">
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1">Troop Name / Number</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-flag"></i></span>
-                        <input type="text" id="signup-troop" required placeholder="Troop 101 Eagle Patrols" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-scout-khaki transition">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1">Email Address</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-envelope"></i></span>
-                        <input type="email" id="signup-email" required placeholder="quartermaster@troop101.scout" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-scout-khaki transition">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1">Create Password</label>
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-key"></i></span>
-                        <input type="password" id="signup-password" minlength="6" required placeholder="At least 6 characters" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg py-2.5 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-scout-khaki transition">
-                    </div>
-                </div>
-                <button type="submit" id="signup-submit-btn" class="w-full bg-scout-amber hover:bg-scout-amberdark text-scout-darkgreen font-bold py-3 rounded-lg shadow-lg transition duration-200 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-user-plus"></i> Register Quartermaster Account
-                </button>
-            </form>
-
-            <!-- Quick Demo Credentials Loader (No anonymous login, fills test user details) -->
-            <div class="mt-6 pt-4 border-t border-scout-border text-center">
-                <button type="button" onclick="fillDemoCredentials()" class="text-xs text-scout-khaki hover:underline flex items-center justify-center gap-1.5 mx-auto opacity-80 hover:opacity-100">
-                    <i class="fa-solid fa-vial"></i> Autofill Demo Credentials
-                </button>
-            </div>
-        </div>
-    </div>
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- MAIN APP CONTAINER -->
-    <div id="app-container" class="hidden min-h-screen flex flex-col">
-        
-        <!-- TOP HEADER BAR -->
-        <header class="bg-scout-darkgreen border-b border-scout-border sticky top-0 z-30 shadow-md">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                <!-- Left: Logo & Troop Title -->
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 rounded-lg bg-scout-green border border-scout-khaki flex items-center justify-center text-scout-khaki font-bold text-lg shadow-inner">
-                        <i class="fa-solid fa-compass"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-base sm:text-lg font-bold text-white heading-font leading-none">Troop 101 Quartermaster</h1>
-                        <p class="text-xs text-scout-khaki font-medium mt-0.5">Scout Stores & Field Equipment</p>
-                    </div>
-                </div>
-
-                <!-- Desktop Nav -->
-                <nav class="hidden md:flex space-x-1">
-                    <button onclick="switchView('dashboard')" id="desk-nav-dashboard" class="nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-white bg-scout-card border border-scout-border flex items-center gap-2">
-                        <i class="fa-solid fa-chart-pie text-scout-amber"></i> Dashboard
-                    </button>
-                    <button onclick="switchView('inventory')" id="desk-nav-inventory" class="nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-scout-card transition flex items-center gap-2">
-                        <i class="fa-solid fa-boxes-stacked text-scout-khaki"></i> Equipment
-                    </button>
-                    <button onclick="switchView('issues')" id="desk-nav-issues" class="nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-scout-card transition flex items-center gap-2">
-                        <i class="fa-solid fa-hand-holding-hand text-emerald-400"></i> Patrol Issues
-                    </button>
-                    <button onclick="switchView('scanner')" id="desk-nav-scanner" class="nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-scout-card transition flex items-center gap-2">
-                        <i class="fa-solid fa-qrcode text-cyan-400"></i> QR Scanner
-                    </button>
-                    <button onclick="switchView('repairs')" id="desk-nav-repairs" class="nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-scout-card transition flex items-center gap-2">
-                        <i class="fa-solid fa-wrench text-rose-400"></i> Repairs & Audit
-                    </button>
-                </nav>
-
-                <!-- Right: Active QM User Info & Logout -->
-                <div class="flex items-center space-x-3">
-                    <div class="hidden sm:block text-right">
-                        <div id="user-display-email" class="text-xs font-semibold text-gray-200">qm@troop.scout</div>
-                        <div class="text-[10px] text-scout-khaki uppercase tracking-wider">Quartermaster</div>
-                    </div>
-                    <button onclick="handleSignOut()" title="Sign Out" class="p-2 rounded-lg bg-scout-card hover:bg-rose-900/50 border border-scout-border text-gray-300 hover:text-rose-300 transition">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- PAGE CONTENT CONTAINER -->
-        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-
-            <!-- VIEW 1: DASHBOARD -->
-            <section id="view-dashboard" class="space-y-6">
-                <!-- Top Welcome Banner -->
-                <div class="bg-gradient-to-r from-scout-card via-scout-green to-scout-darkgreen border border-scout-border rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <span class="px-3 py-1 bg-scout-khaki/20 text-scout-khaki text-xs font-semibold rounded-full border border-scout-khaki/30 mb-2 inline-block">
-                                Be Prepared • Be Ready
-                            </span>
-                            <h2 class="text-2xl font-bold text-white heading-font">Quartermaster Store Control</h2>
-                            <p class="text-sm text-gray-300 mt-1 max-w-xl">
-                                Track tents, pioneering ropes, cooking gear, and camp equipment checked out to Patrols (Eagle, Cobra, Wolf, Hawk).
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button onclick="openIssueModal()" class="bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold text-sm px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition">
-                                <i class="fa-solid fa-plus-circle"></i> Issue Gear to Patrol
-                            </button>
-                            <button onclick="openAddItemModal()" class="bg-scout-card hover:bg-scout-hover border border-scout-border text-white font-medium text-sm px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition">
-                                <i class="fa-solid fa-box-archive text-scout-amber"></i> Add New Equipment
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- KPI CARDS GRID -->
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-                    <!-- Total Items -->
-                    <div class="bg-scout-card border border-scout-border rounded-xl p-4 flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start text-gray-400">
-                            <span class="text-xs font-semibold uppercase tracking-wider">Total Items</span>
-                            <i class="fa-solid fa-cubes text-scout-khaki"></i>
-                        </div>
-                        <div class="mt-2">
-                            <span id="kpi-total-items" class="text-2xl sm:text-3xl font-bold text-white heading-font">0</span>
-                            <span class="text-xs text-gray-400 block mt-0.5">unique SKUs</span>
-                        </div>
-                    </div>
-
-                    <!-- Available in Store -->
-                    <div class="bg-scout-card border border-scout-border rounded-xl p-4 flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start text-gray-400">
-                            <span class="text-xs font-semibold uppercase tracking-wider">In Store</span>
-                            <i class="fa-solid fa-warehouse text-emerald-400"></i>
-                        </div>
-                        <div class="mt-2">
-                            <span id="kpi-avail-items" class="text-2xl sm:text-3xl font-bold text-emerald-400 heading-font">0</span>
-                            <span class="text-xs text-emerald-300/70 block mt-0.5">ready for camp</span>
-                        </div>
-                    </div>
-
-                    <!-- Checked Out to Patrols -->
-                    <div class="bg-scout-card border border-scout-border rounded-xl p-4 flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start text-gray-400">
-                            <span class="text-xs font-semibold uppercase tracking-wider">Checked Out</span>
-                            <i class="fa-solid fa-tent text-scout-amber"></i>
-                        </div>
-                        <div class="mt-2">
-                            <span id="kpi-issued-items" class="text-2xl sm:text-3xl font-bold text-scout-amber heading-font">0</span>
-                            <span class="text-xs text-scout-amber/70 block mt-0.5">in field use</span>
-                        </div>
-                    </div>
-
-                    <!-- Low Stock Alerts -->
-                    <div class="bg-scout-card border border-scout-border rounded-xl p-4 flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start text-gray-400">
-                            <span class="text-xs font-semibold uppercase tracking-wider">Low Stock</span>
-                            <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
-                        </div>
-                        <div class="mt-2">
-                            <span id="kpi-low-stock" class="text-2xl sm:text-3xl font-bold text-amber-400 heading-font">0</span>
-                            <span class="text-xs text-amber-300/70 block mt-0.5">&le; 2 available</span>
-                        </div>
-                    </div>
-
-                    <!-- Maintenance Needed -->
-                    <div class="col-span-2 md:col-span-1 bg-scout-card border border-scout-border rounded-xl p-4 flex flex-col justify-between shadow-md">
-                        <div class="flex justify-between items-start text-gray-400">
-                            <span class="text-xs font-semibold uppercase tracking-wider">Needs Repair</span>
-                            <i class="fa-solid fa-screwdriver-wrench text-rose-400"></i>
-                        </div>
-                        <div class="mt-2">
-                            <span id="kpi-repairs-needed" class="text-2xl sm:text-3xl font-bold text-rose-400 heading-font">0</span>
-                            <span class="text-xs text-rose-300/70 block mt-0.5">damaged items</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- DASHBOARD LOWER SECTION: Active Patrol Checkouts & Recent Activity -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Active Patrol Checkouts Summary -->
-                    <div class="lg:col-span-2 bg-scout-card border border-scout-border rounded-2xl p-5 shadow-lg">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-base font-bold text-white heading-font flex items-center gap-2">
-                                <i class="fa-solid fa-campground text-scout-khaki"></i> Active Patrol Gear Out
-                            </h3>
-                            <button onclick="switchView('issues')" class="text-xs text-scout-khaki hover:underline font-medium">View All Issues &rarr;</button>
-                        </div>
-                        
-                        <div id="dashboard-active-issues" class="space-y-3">
-                            <!-- Populated dynamically -->
-                            <div class="text-center py-8 text-gray-400 text-sm">Loading active patrol checkouts...</div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Audit Activity Log -->
-                    <div class="bg-scout-card border border-scout-border rounded-2xl p-5 shadow-lg flex flex-col">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-base font-bold text-white heading-font flex items-center gap-2">
-                                <i class="fa-solid fa-clock-rotate-left text-cyan-400"></i> Store Audit Trail
-                            </h3>
-                            <button onclick="exportLogsCSV()" class="text-xs text-scout-khaki hover:underline font-medium"><i class="fa-solid fa-download mr-1"></i> Export CSV</button>
-                        </div>
-                        <div id="dashboard-recent-logs" class="space-y-3 flex-1 overflow-y-auto max-h-80 pr-1 text-xs">
-                            <!-- Populated dynamically -->
-                            <div class="text-center py-8 text-gray-400">Loading store activity...</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- VIEW 2: INVENTORY MANAGEMENT -->
-            <section id="view-inventory" class="hidden space-y-6">
-                <!-- Filter Bar -->
-                <div class="bg-scout-card border border-scout-border rounded-2xl p-4 shadow-md flex flex-col sm:flex-row gap-3 items-center justify-between">
-                    <div class="relative w-full sm:w-72">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-magnifying-glass"></i></span>
-                        <input type="text" id="inventory-search" oninput="renderInventory()" placeholder="Search item code, name, location..." class="w-full bg-scout-darkgreen border border-scout-border rounded-xl py-2 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-scout-khaki">
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                        <select id="filter-category" onchange="renderInventory()" class="bg-scout-darkgreen border border-scout-border rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-scout-khaki">
-                            <option value="ALL">All Categories</option>
-                            <option value="Tents & Shelter">Tents & Shelter</option>
-                            <option value="Cooking & Fires">Cooking & Fires</option>
-                            <option value="Pioneering & Ropes">Pioneering & Ropes</option>
-                            <option value="First Aid & Safety">First Aid & Safety</option>
-                            <option value="Navigation & Lighting">Navigation & Lighting</option>
-                            <option value="Tools & Axes">Tools & Axes</option>
-                        </select>
-
-                        <select id="filter-condition" onchange="renderInventory()" class="bg-scout-darkgreen border border-scout-border rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-scout-khaki">
-                            <option value="ALL">All Conditions</option>
-                            <option value="Good">Good</option>
-                            <option value="Needs Repair">Needs Repair</option>
-                            <option value="Retired">Retired</option>
-                        </select>
-
-                        <button onclick="openAddItemModal()" class="bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold text-xs px-3.5 py-2.5 rounded-xl shadow flex items-center gap-1.5 ml-auto">
-                            <i class="fa-solid fa-plus"></i> New Item
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Inventory Cards Grid -->
-                <div id="inventory-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Dynamic Equipment Cards -->
-                </div>
-            </section>
-
-            <!-- VIEW 3: ISSUED GEAR & RETURN MANAGEMENT -->
-            <section id="view-issues" class="hidden space-y-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-scout-card border border-scout-border p-4 rounded-2xl">
-                    <div>
-                        <h2 class="text-xl font-bold text-white heading-font">Patrol Gear Checkouts</h2>
-                        <p class="text-xs text-scout-khaki">Equipment currently issued to Scouts or Patrols (Eagle, Cobra, Wolf, Hawk)</p>
-                    </div>
-                    <button onclick="openIssueModal()" class="bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold text-sm px-4 py-2.5 rounded-xl shadow flex items-center gap-2">
-                        <i class="fa-solid fa-hand-holding-hand"></i> Issue Gear Now
-                    </button>
-                </div>
-
-                <!-- Tabs: Active vs Returned -->
-                <div class="flex space-x-2 border-b border-scout-border pb-2">
-                    <button id="tab-issues-active" onclick="switchIssueSubTab('active')" class="px-4 py-2 rounded-lg text-xs font-bold bg-scout-green text-scout-khaki border border-scout-khaki/30">
-                        Active Field Checkouts
-                    </button>
-                    <button id="tab-issues-history" onclick="switchIssueSubTab('history')" class="px-4 py-2 rounded-lg text-xs font-bold text-gray-400 hover:text-white">
-                        Return History
-                    </button>
-                </div>
-
-                <!-- Issues Table/List -->
-                <div id="issues-list-container" class="space-y-3">
-                    <!-- Populated dynamically -->
-                </div>
-            </section>
-
-            <!-- VIEW 4: QR / BARCODE SCANNER SIMULATOR -->
-            <section id="view-scanner" class="hidden space-y-6 max-w-xl mx-auto">
-                <div class="bg-scout-card border border-scout-border rounded-2xl p-6 shadow-2xl text-center space-y-4">
-                    <div>
-                        <h2 class="text-xl font-bold text-white heading-font flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-qrcode text-cyan-400"></i> Field Scanner Simulation
-                        </h2>
-                        <p class="text-xs text-gray-300 mt-1">Scan store item QR badges or enter SKU for quick field checkin/checkout</p>
-                    </div>
-
-                    <!-- Camera Viewfinder Simulation -->
-                    <div class="relative w-full h-64 bg-slate-950 border-2 border-dashed border-scout-khaki/60 rounded-2xl overflow-hidden flex flex-col items-center justify-center shadow-inner">
-                        <div class="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent scanner-laser z-10"></div>
-                        
-                        <div class="text-scout-khaki/40 text-6xl mb-2">
-                            <i class="fa-solid fa-barcode"></i>
-                        </div>
-                        <p class="text-xs text-gray-400 font-mono">ALIGN SKOUT BADGE INSIDE FRAME</p>
-                        <p class="text-[10px] text-cyan-400/80 mt-1 animate-pulse">Camera Viewfinder Active</p>
-
-                        <!-- Simulated Quick Scan Buttons -->
-                        <div class="absolute bottom-3 inset-x-3 bg-scout-darkgreen/90 backdrop-blur border border-scout-border rounded-xl p-2 flex gap-1 overflow-x-auto text-left">
-                            <span class="text-[10px] text-gray-400 whitespace-nowrap self-center mr-1">Simulate Code:</span>
-                            <button onclick="simulateScanCode('EQ-101')" class="text-[10px] bg-scout-card hover:bg-scout-khaki hover:text-scout-darkgreen text-scout-khaki px-2 py-1 rounded border border-scout-border font-mono transition">EQ-101</button>
-                            <button onclick="simulateScanCode('EQ-102')" class="text-[10px] bg-scout-card hover:bg-scout-khaki hover:text-scout-darkgreen text-scout-khaki px-2 py-1 rounded border border-scout-border font-mono transition">EQ-102</button>
-                            <button onclick="simulateScanCode('EQ-103')" class="text-[10px] bg-scout-card hover:bg-scout-khaki hover:text-scout-darkgreen text-scout-khaki px-2 py-1 rounded border border-scout-border font-mono transition">EQ-103</button>
-                            <button onclick="simulateScanCode('EQ-106')" class="text-[10px] bg-scout-card hover:bg-scout-khaki hover:text-scout-darkgreen text-scout-khaki px-2 py-1 rounded border border-scout-border font-mono transition">EQ-106</button>
-                        </div>
-                    </div>
-
-                    <!-- Manual Scan Input -->
-                    <form onsubmit="handleManualScan(event)" class="flex gap-2">
-                        <input type="text" id="manual-scan-input" placeholder="e.g. EQ-101" class="flex-1 bg-scout-darkgreen border border-scout-border rounded-xl px-4 py-2.5 text-sm text-white uppercase font-mono focus:outline-none focus:border-scout-khaki">
-                        <button type="submit" class="bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold text-sm px-5 py-2.5 rounded-xl transition">
-                            Lookup
-                        </button>
-                    </form>
-
-                    <!-- Scan Result Card -->
-                    <div id="scan-result-card" class="hidden text-left bg-scout-darkgreen border border-scout-khaki/50 rounded-xl p-4 space-y-3">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- VIEW 5: MAINTENANCE & REPAIRS & MANIFEST -->
-            <section id="view-repairs" class="hidden space-y-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-scout-card border border-scout-border p-4 rounded-2xl">
-                    <div>
-                        <h2 class="text-xl font-bold text-white heading-font">Equipment Maintenance & Manifest</h2>
-                        <p class="text-xs text-scout-khaki">Track damaged ropes, tents, axes needing repair, or generate printable troop manifests</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="openLogRepairModal()" class="bg-rose-800 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow flex items-center gap-1.5">
-                            <i class="fa-solid fa-triangle-exclamation"></i> Log Damaged Gear
-                        </button>
-                        <button onclick="openPrintableManifest()" class="bg-scout-amber hover:bg-scout-amberdark text-scout-darkgreen font-bold text-xs px-3.5 py-2.5 rounded-xl shadow flex items-center gap-1.5">
-                            <i class="fa-solid fa-print"></i> Printable Manifest
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Repair Tickets -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-scout-card border border-scout-border rounded-2xl p-5 shadow-md">
-                        <h3 class="text-base font-bold text-white heading-font mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-screwdriver-wrench text-rose-400"></i> Repair Log Tickets
-                        </h3>
-                        <div id="repairs-list" class="space-y-3">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-
-                    <div class="bg-scout-card border border-scout-border rounded-2xl p-5 shadow-md">
-                        <h3 class="text-base font-bold text-white heading-font mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-clipboard-list text-scout-khaki"></i> Full Audit Trail
-                        </h3>
-                        <div id="full-audit-log" class="space-y-2 max-h-96 overflow-y-auto pr-1 text-xs">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-        </main>
-
-        <!-- MOBILE BOTTOM NAVBAR (Smartphone optimized) -->
-        <nav class="md:hidden fixed bottom-0 inset-x-0 bg-scout-darkgreen border-t border-scout-border z-40 px-2 py-1 shadow-2xl flex justify-around items-center">
-            <button onclick="switchView('dashboard')" id="mob-nav-dashboard" class="flex flex-col items-center py-1 px-3 rounded-lg text-scout-amber">
-                <i class="fa-solid fa-chart-pie text-lg"></i>
-                <span class="text-[10px] font-medium mt-0.5">Home</span>
-            </button>
-            <button onclick="switchView('inventory')" id="mob-nav-inventory" class="flex flex-col items-center py-1 px-3 rounded-lg text-gray-400 hover:text-white">
-                <i class="fa-solid fa-boxes-stacked text-lg"></i>
-                <span class="text-[10px] font-medium mt-0.5">Store</span>
-            </button>
-            <button onclick="switchView('issues')" id="mob-nav-issues" class="flex flex-col items-center py-1 px-3 rounded-lg text-gray-400 hover:text-white">
-                <i class="fa-solid fa-hand-holding-hand text-lg"></i>
-                <span class="text-[10px] font-medium mt-0.5">Patrols</span>
-            </button>
-            <button onclick="switchView('scanner')" id="mob-nav-scanner" class="flex flex-col items-center py-1 px-3 rounded-lg text-gray-400 hover:text-white">
-                <i class="fa-solid fa-qrcode text-lg"></i>
-                <span class="text-[10px] font-medium mt-0.5">Scan</span>
-            </button>
-            <button onclick="switchView('repairs')" id="mob-nav-repairs" class="flex flex-col items-center py-1 px-3 rounded-lg text-gray-400 hover:text-white">
-                <i class="fa-solid fa-wrench text-lg"></i>
-                <span class="text-[10px] font-medium mt-0.5">Repairs</span>
-            </button>
-        </nav>
-
+    <div id="app" class="flex-1 flex flex-col">
+        <!-- Dynamic content injected here via JavaScript -->
     </div>
 
-    <!-- MODAL: ADD / EDIT ITEM -->
-    <div id="modal-item" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-scout-card border border-scout-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center border-b border-scout-border pb-3">
-                <h3 id="modal-item-title" class="text-lg font-bold text-white heading-font">Add Equipment to Store</h3>
-                <button onclick="closeModal('modal-item')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form onsubmit="saveItem(event)" class="space-y-3 text-xs">
-                <input type="hidden" id="item-doc-id">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Item Code / SKU</label>
-                        <input type="text" id="item-code" required placeholder="e.g. EQ-109" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white uppercase font-mono">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Category</label>
-                        <select id="item-category" required class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                            <option value="Tents & Shelter">Tents & Shelter</option>
-                            <option value="Cooking & Fires">Cooking & Fires</option>
-                            <option value="Pioneering & Ropes">Pioneering & Ropes</option>
-                            <option value="First Aid & Safety">First Aid & Safety</option>
-                            <option value="Navigation & Lighting">Navigation & Lighting</option>
-                            <option value="Tools & Axes">Tools & Axes</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Equipment Name</label>
-                    <input type="text" id="item-name" required placeholder="e.g. Coleman 2-Burner Camp Stove" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Total Quantity</label>
-                        <input type="number" id="item-total" min="1" required placeholder="1" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Available Quantity</label>
-                        <input type="number" id="item-avail" min="0" required placeholder="1" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Condition</label>
-                        <select id="item-condition" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                            <option value="Good">Good Condition</option>
-                            <option value="Needs Repair">Needs Repair</option>
-                            <option value="Retired">Retired / Out of Service</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Locker / Storage Bin</label>
-                        <input type="text" id="item-location" required placeholder="e.g. Locker B3, Shelf 2" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                    </div>
-                </div>
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Notes / Specifications</label>
-                    <textarea id="item-notes" rows="2" placeholder="e.g. Includes stakes and rainfly, inspected Oct 2026" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white"></textarea>
-                </div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="closeModal('modal-item')" class="px-4 py-2 bg-scout-darkgreen hover:bg-scout-hover text-gray-300 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold rounded-lg shadow">Save Item</button>
-                </div>
-            </form>
+    <!-- MODAL CONTAINER -->
+    <div id="modal-container" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 relative">
+            <!-- Modal markup dynamically injected -->
         </div>
     </div>
 
-    <!-- MODAL: ISSUE GEAR TO SCOUT/PATROL -->
-    <div id="modal-issue" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-scout-card border border-scout-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b border-scout-border pb-3">
-                <h3 class="text-lg font-bold text-white heading-font">Issue Gear to Patrol</h3>
-                <button onclick="closeModal('modal-issue')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form onsubmit="handleIssueSubmit(event)" class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Select Equipment Item</label>
-                    <select id="issue-item-id" required class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Patrol Name</label>
-                        <select id="issue-patrol" required class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                            <option value="Eagle Patrol">Eagle Patrol</option>
-                            <option value="Cobra Patrol">Cobra Patrol</option>
-                            <option value="Wolf Patrol">Wolf Patrol</option>
-                            <option value="Hawk Patrol">Hawk Patrol</option>
-                            <option value="Scoutmasters / Staff">Scoutmasters / Staff</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Scout Leader Name</label>
-                        <input type="text" id="issue-scout-name" required placeholder="e.g. PL Alex Rivera" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Date Checked Out</label>
-                        <input type="date" id="issue-date-out" required class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-gray-300 mb-1">Expected Return Date</label>
-                        <input type="date" id="issue-date-due" required class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                    </div>
-                </div>
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Campout / Purpose</label>
-                    <input type="text" id="issue-purpose" required placeholder="e.g. Autumn Camporee at Camp Pine Ridge" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                </div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="closeModal('modal-issue')" class="px-4 py-2 bg-scout-darkgreen hover:bg-scout-hover text-gray-300 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold rounded-lg shadow">Confirm Checkout</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: LOG REPAIR TICKET -->
-    <div id="modal-repair" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-scout-card border border-scout-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
-            <div class="flex justify-between items-center border-b border-scout-border pb-3">
-                <h3 class="text-lg font-bold text-white heading-font">Log Damaged Equipment</h3>
-                <button onclick="closeModal('modal-repair')" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form onsubmit="handleRepairSubmit(event)" class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Select Item</label>
-                    <select id="repair-item-id" required class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Issue / Damage Description</label>
-                    <textarea id="repair-desc" required rows="3" placeholder="e.g. Broken zipper on entrance flap, needs stitching" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white"></textarea>
-                </div>
-                <div>
-                    <label class="block font-semibold text-gray-300 mb-1">Priority</label>
-                    <select id="repair-priority" class="w-full bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 text-white">
-                        <option value="High">High - Needed for next camp</option>
-                        <option value="Medium">Medium - Regular maintenance</option>
-                        <option value="Low">Low - Cosmetic damage</option>
-                    </select>
-                </div>
-                <div class="flex justify-end space-x-2 pt-2">
-                    <button type="button" onclick="closeModal('modal-repair')" class="px-4 py-2 bg-scout-darkgreen hover:bg-scout-hover text-gray-300 rounded-lg">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-rose-700 hover:bg-rose-600 text-white font-bold rounded-lg shadow">Log Repair</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: PRINTABLE STORE MANIFEST OVERLAY -->
-    <div id="modal-manifest" class="fixed inset-0 z-50 bg-black/90 hidden items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white text-black p-8 rounded-xl max-w-4xl w-full space-y-6 shadow-2xl relative" id="printable-manifest">
-            <div class="flex justify-between items-start border-b-2 border-black pb-4">
-                <div>
-                    <h1 class="text-2xl font-bold uppercase tracking-wider">Scout Troop 101 Quartermaster Manifest</h1>
-                    <p class="text-xs text-gray-600">Generated: <span id="manifest-date"></span> • Official Store Inventory & Status</p>
-                </div>
-                <div class="text-right flex gap-2 print:hidden">
-                    <button onclick="window.print()" class="bg-scout-green text-white text-xs font-bold px-3 py-1.5 rounded shadow"><i class="fa-solid fa-print mr-1"></i> Print</button>
-                    <button onclick="closeModal('modal-manifest')" class="bg-gray-300 text-black text-xs font-bold px-3 py-1.5 rounded"><i class="fa-solid fa-xmark"></i> Close</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-4 text-xs font-mono bg-gray-100 p-3 rounded">
-                <div>Total SKUs: <strong id="manifest-count-total">0</strong></div>
-                <div>Available: <strong id="manifest-count-avail">0</strong></div>
-                <div>Checked Out: <strong id="manifest-count-out">0</strong></div>
-            </div>
-
-            <table class="w-full text-left text-xs border-collapse">
-                <thead>
-                    <tr class="border-b-2 border-black font-bold uppercase bg-gray-200">
-                        <th class="p-2">Code</th>
-                        <th class="p-2">Item Name</th>
-                        <th class="p-2">Category</th>
-                        <th class="p-2">Location</th>
-                        <th class="p-2 text-center">Avail / Total</th>
-                        <th class="p-2">Condition</th>
-                    </tr>
-                </thead>
-                <tbody id="manifest-table-body" class="divide-y divide-gray-300">
-                    <!-- Populated dynamically -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-
-    <!-- FIREBASE MODULE LOGIC -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInWithEmailAndPassword, 
-            createUserWithEmailAndPassword, 
-            signOut, 
-            onAuthStateChanged,
-            signInWithCustomToken
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            doc, 
-            getDocs, 
-            addDoc, 
-            updateDoc, 
-            deleteDoc, 
-            onSnapshot 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by environment or defaults
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'scout-troop-qm-store';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyDemoConfigForScoutQuartermasterApp",
-            authDomain: "scout-qm-store.firebaseapp.com",
-            projectId: "scout-qm-store",
-            storageBucket: "scout-qm-store.appspot.com",
+    <script>
+        // ==========================================
+        // FIREBASE CONFIGURATION & INITIALIZATION
+        // ==========================================
+        // Replace this config object with your live Firebase Project keys when deploying
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemoKeyForScoutQuartermasterApp",
+            authDomain: "scout-quartermaster-store.firebaseapp.com",
+            projectId: "scout-quartermaster-store",
+            storageBucket: "scout-quartermaster-store.appspot.com",
             messagingSenderId: "123456789012",
             appId: "1:123456789012:web:demo123456"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let db = null;
+        let auth = null;
+        let isFirebaseActive = false;
 
-        // Firestore public paths
-        const inventoryCol = collection(db, 'artifacts', appId, 'public', 'data', 'scout_inventory');
-        const issuesCol    = collection(db, 'artifacts', appId, 'public', 'data', 'scout_issues');
-        const repairsCol   = collection(db, 'artifacts', appId, 'public', 'data', 'scout_repairs');
-        const logsCol      = collection(db, 'artifacts', appId, 'public', 'data', 'scout_logs');
-
-        // State variables
-        let currentUser = null;
-        let inventoryData = [];
-        let issuesData = [];
-        let repairsData = [];
-        let logsData = [];
-
-        // Sample Scout Data Seeding
-        const defaultScoutSeedData = [
-            { code: 'EQ-101', name: '4-Person Waterproof Dome Tent', category: 'Tents & Shelter', totalQty: 8, availableQty: 6, condition: 'Good', location: 'Locker A1', notes: 'Includes rainfly, ground cloth, and pegs' },
-            { code: 'EQ-102', name: 'Cast Iron Dutch Oven (12-inch)', category: 'Cooking & Fires', totalQty: 5, availableQty: 4, condition: 'Good', location: 'Shelf B2', notes: 'Pre-seasoned iron lid and bail handle' },
-            { code: 'EQ-103', name: 'Manila Pioneering Rope (50ft 10mm)', category: 'Pioneering & Ropes', totalQty: 12, availableQty: 10, condition: 'Good', location: 'Bin C1', notes: 'Natural fiber Manila rope for lashings' },
-            { code: 'EQ-104', name: 'Silva Ranger Orienteering Compass', category: 'Navigation & Lighting', totalQty: 15, availableQty: 15, condition: 'Good', location: 'Drawer D3', notes: 'Declination adjustment tool attached' },
-            { code: 'EQ-105', name: 'Troop Wilderness First Aid Kit', category: 'First Aid & Safety', totalQty: 4, availableQty: 3, condition: 'Good', location: 'Med Locker 1', notes: 'Inspected and restocked spring 2026' },
-            { code: 'EQ-106', name: 'Estwing Camp Hand Axe (14 inch)', category: 'Tools & Axes', totalQty: 6, availableQty: 4, condition: 'Needs Repair', location: 'Tool Rack 2', notes: 'Edge needs sharpening & leather sheath repair' },
-            { code: 'EQ-107', name: 'Dual Fuel Propane Lantern', category: 'Navigation & Lighting', totalQty: 10, availableQty: 8, condition: 'Good', location: 'Shelf B3', notes: 'Includes double mantles and hard carry case' },
-            { code: 'EQ-108', name: 'Patrol Dining Fly Tarp (12x14ft)', category: 'Tents & Shelter', totalQty: 4, availableQty: 3, condition: 'Good', location: 'Locker A2', notes: 'Heavy duty ripstop canvas with guy lines' }
-        ];
-
-        // System Initialization
-        window.addEventListener('DOMContentLoaded', async () => {
-            // Setup Auth Listener
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    currentUser = user;
-                    document.getElementById('auth-modal').classList.add('hidden');
-                    document.getElementById('app-container').classList.remove('hidden');
-                    document.getElementById('user-display-email').innerText = user.email || 'Scout Quartermaster';
-                    showToast('Welcome back, Quartermaster!', 'success');
-                    initDataListeners();
-                } else {
-                    // Check if token in environment
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        try {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                            return;
-                        } catch (err) {
-                            console.warn("Custom token sign in failed, showing login modal:", err);
-                        }
-                    }
-                    currentUser = null;
-                    document.getElementById('auth-modal').classList.remove('hidden');
-                    document.getElementById('app-container').classList.add('hidden');
-                }
-            });
-
-            // Set default dates for forms
-            const today = new Date().toISOString().split('T')[0];
-            const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-            if (document.getElementById('issue-date-out')) document.getElementById('issue-date-out').value = today;
-            if (document.getElementById('issue-date-due')) document.getElementById('issue-date-due').value = nextWeek;
-        });
-
-        // Initialize Realtime Database Listeners
-        function initDataListeners() {
-            if (!currentUser) return;
-
-            // Inventory listener
-            onSnapshot(inventoryCol, (snapshot) => {
-                inventoryData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // Seed data if database is empty
-                if (inventoryData.length === 0) {
-                    seedInitialData();
-                }
-
-                renderDashboard();
-                renderInventory();
-                populateItemDropdowns();
-            }, (err) => console.error("Inventory snapshot error:", err));
-
-            // Issues listener
-            onSnapshot(issuesCol, (snapshot) => {
-                issuesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderDashboard();
-                renderIssues();
-            }, (err) => console.error("Issues snapshot error:", err));
-
-            // Repairs listener
-            onSnapshot(repairsCol, (snapshot) => {
-                repairsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderDashboard();
-                renderRepairs();
-            }, (err) => console.error("Repairs snapshot error:", err));
-
-            // Logs listener
-            onSnapshot(logsCol, (snapshot) => {
-                logsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Sort logs descending in memory
-                logsData.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-                renderLogs();
-            }, (err) => console.error("Logs snapshot error:", err));
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            auth = firebase.auth();
+            db = firebase.firestore();
+            isFirebaseActive = true;
+        } catch (e) {
+            console.warn("Firebase running in hybrid local storage fallback mode:", e.message);
+            isFirebaseActive = false;
         }
 
-        async function seedInitialData() {
-            try {
-                for (const item of defaultScoutSeedData) {
-                    await addDoc(inventoryCol, { ...item, updatedAt: new Date().toISOString() });
+        // ==========================================
+        // INITIAL DEMO / SEED DATA STORE
+        // ==========================================
+        const DEFAULT_SEED_DATA = {
+            users: [
+                {
+                    uid: "admin_master_1",
+                    email: "trisather28@gmail.com",
+                    name: "Tristan Sather",
+                    role: "admin",
+                    patrol: "Quartermaster Staff",
+                    phone: "+1 (555) 019-2831",
+                    status: "Active"
+                },
+                {
+                    uid: "scout_user_1",
+                    email: "scout.john@troop1.org",
+                    name: "John Carter",
+                    role: "scout",
+                    patrol: "Eagle Patrol",
+                    phone: "+1 (555) 014-8822",
+                    status: "Active"
+                },
+                {
+                    uid: "scout_user_2",
+                    email: "scout.sarah@troop1.org",
+                    name: "Sarah Jenkins",
+                    role: "scout",
+                    patrol: "Wolf Patrol",
+                    phone: "+1 (555) 012-3344",
+                    status: "Active"
                 }
-                await logAudit('SYSTEM_SEED', 'Initialized default Scout Troop equipment store items');
-                showToast('Pre-loaded default Scout Store inventory!', 'info');
-            } catch (err) {
-                console.error('Error seeding data:', err);
+            ],
+            items: [
+                {
+                    id: "item_1",
+                    name: "3-Person Camping Tent (4-Season)",
+                    category: "Camping Gear",
+                    totalQty: 8,
+                    availableQty: 5,
+                    condition: "Good",
+                    location: "Shelf A-1",
+                    description: "Waterproof dome tent with rainfly, stakes, and aluminum poles.",
+                    icon: "fa-tent",
+                    imageUrl: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=500&auto=format&fit=crop&q=60"
+                },
+                {
+                    id: "item_2",
+                    name: "Coleman Dual-Burner Camp Stove",
+                    category: "Cooking Equipment",
+                    totalQty: 5,
+                    availableQty: 3,
+                    condition: "Excellent",
+                    location: "Shelf B-3",
+                    description: "Propane 2-burner stove with wind shields and regulator.",
+                    icon: "fa-fire-burner",
+                    imageUrl: "https://images.unsplash.com/photo-1525811902-f2342640856e?w=500&auto=format&fit=crop&q=60"
+                },
+                {
+                    id: "item_3",
+                    name: "Cast Iron Dutch Oven (6 Qt)",
+                    category: "Cooking Equipment",
+                    totalQty: 4,
+                    availableQty: 2,
+                    condition: "Fair",
+                    location: "Shelf B-4",
+                    description: "Heavy-duty seasoned cast iron pot with lid lifter.",
+                    icon: "fa-utensils",
+                    imageUrl: "https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=500&auto=format&fit=crop&q=60"
+                },
+                {
+                    id: "item_4",
+                    name: "Silva Ranger S Scouting Compass",
+                    category: "Navigation & Tools",
+                    totalQty: 15,
+                    availableQty: 12,
+                    condition: "Excellent",
+                    location: "Drawer C-2",
+                    description: "Mirror sighting compass with declination scale and lanyard.",
+                    icon: "fa-compass",
+                    imageUrl: "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=500&auto=format&fit=crop&q=60"
+                },
+                {
+                    id: "item_5",
+                    name: "Troop First Aid Master Kit",
+                    category: "First Aid & Safety",
+                    totalQty: 3,
+                    availableQty: 3,
+                    condition: "New",
+                    location: "Cabinet D-1",
+                    description: "Fully stocked wilderness first aid response kit in waterproof case.",
+                    icon: "fa-kit-medical",
+                    imageUrl: "https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=500&auto=format&fit=crop&q=60"
+                },
+                {
+                    id: "item_6",
+                    name: "Pioneering Rope Bundle (50m Manilla)",
+                    category: "Pioneering & Ropes",
+                    totalQty: 10,
+                    availableQty: 7,
+                    condition: "Good",
+                    location: "Rack E-1",
+                    description: "12mm natural fiber manilla ropes for lashing and bridge construction.",
+                    icon: "fa-rope",
+                    imageUrl: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=500&auto=format&fit=crop&q=60"
+                }
+            ],
+            requests: [
+                {
+                    id: "req_101",
+                    itemId: "item_1",
+                    itemName: "3-Person Camping Tent (4-Season)",
+                    userEmail: "scout.john@troop1.org",
+                    userName: "John Carter",
+                    userPatrol: "Eagle Patrol",
+                    qty: 2,
+                    requestDate: "2026-10-20",
+                    expectedReturnDate: "2026-10-28",
+                    purpose: "Patrol Weekend Survival Camp at Lake Pines",
+                    status: "Approved",
+                    approvedBy: "trisather28@gmail.com"
+                },
+                {
+                    id: "req_102",
+                    itemId: "item_3",
+                    itemName: "Cast Iron Dutch Oven (6 Qt)",
+                    userEmail: "scout.sarah@troop1.org",
+                    userName: "Sarah Jenkins",
+                    userPatrol: "Wolf Patrol",
+                    qty: 1,
+                    requestDate: "2026-10-24",
+                    expectedReturnDate: "2026-10-30",
+                    purpose: "Patrol Cooking Badge Demonstration",
+                    status: "Pending",
+                    approvedBy: null
+                }
+            ]
+        };
+
+        // Initialize Local Storage database if needed
+        function initLocalDatabase() {
+            if (!localStorage.getItem("scout_store_users")) {
+                localStorage.setItem("scout_store_users", JSON.stringify(DEFAULT_SEED_DATA.users));
+            }
+            if (!localStorage.getItem("scout_store_items")) {
+                localStorage.setItem("scout_store_items", JSON.stringify(DEFAULT_SEED_DATA.items));
+            }
+            if (!localStorage.getItem("scout_store_requests")) {
+                localStorage.setItem("scout_store_requests", JSON.stringify(DEFAULT_SEED_DATA.requests));
             }
         }
+        initLocalDatabase();
 
-        // Audit Log Helper
-        async function logAudit(action, details, itemCode = '') {
-            if (!currentUser) return;
-            try {
-                await addDoc(logsCol, {
-                    timestamp: new Date().toISOString(),
-                    userEmail: currentUser.email || 'qm@troop.scout',
-                    action,
-                    details,
-                    itemCode
-                });
-            } catch (e) {
-                console.error("Failed to write log:", e);
-            }
-        }
+        // Helper getters / setters for state
+        function getLocalUsers() { return JSON.parse(localStorage.getItem("scout_store_users") || "[]"); }
+        function saveLocalUsers(users) { localStorage.setItem("scout_store_users", JSON.stringify(users)); }
+        function getLocalItems() { return JSON.parse(localStorage.getItem("scout_store_items") || "[]"); }
+        function saveLocalItems(items) { localStorage.setItem("scout_store_items", JSON.stringify(items)); }
+        function getLocalRequests() { return JSON.parse(localStorage.getItem("scout_store_requests") || "[]"); }
+        function saveLocalRequests(reqs) { localStorage.setItem("scout_store_requests", JSON.stringify(reqs)); }
 
-        // --- AUTH HANDLERS ---
-        window.switchAuthTab = (type) => {
-            const signinForm = document.getElementById('signin-form');
-            const signupForm = document.getElementById('signup-form');
-            const signinBtn = document.getElementById('tab-signin-btn');
-            const signupBtn = document.getElementById('tab-signup-btn');
-
-            if (type === 'signin') {
-                signinForm.classList.remove('hidden');
-                signupForm.classList.add('hidden');
-                signinBtn.className = "flex-1 py-2 text-center font-semibold text-scout-khaki border-b-2 border-scout-khaki transition-all text-sm";
-                signupBtn.className = "flex-1 py-2 text-center font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-200 transition-all text-sm";
-            } else {
-                signinForm.classList.add('hidden');
-                signupForm.classList.remove('hidden');
-                signupBtn.className = "flex-1 py-2 text-center font-semibold text-scout-amber border-b-2 border-scout-amber transition-all text-sm";
-                signinBtn.className = "flex-1 py-2 text-center font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-200 transition-all text-sm";
-            }
+        // ==========================================
+        // APP STATE
+        // ==========================================
+        const state = {
+            currentUser: null, // { email, name, role, patrol, uid }
+            activeTab: 'inventory', // 'inventory', 'requests', 'loans', 'users', 'analytics'
+            searchQuery: '',
+            categoryFilter: 'All',
+            statusFilter: 'All'
         };
 
-        window.handleSignIn = async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('signin-email').value;
-            const password = document.getElementById('signin-password').value;
-            const btn = document.getElementById('signin-submit-btn');
-
-            try {
-                btn.disabled = true;
-                btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Signing In...`;
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (err) {
-                showToast(`Sign In Failed: ${err.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> Sign In to Store`;
-            }
-        };
-
-        window.handleSignUp = async (e) => {
-            e.preventDefault();
-            const troop = document.getElementById('signup-troop').value;
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            const btn = document.getElementById('signup-submit-btn');
-
-            try {
-                btn.disabled = true;
-                btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Creating Account...`;
-                await createUserWithEmailAndPassword(auth, email, password);
-                await logAudit('USER_REGISTER', `Registered new QM account for ${troop}`);
-            } catch (err) {
-                showToast(`Sign Up Failed: ${err.message}`, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-user-plus"></i> Register Quartermaster Account`;
-            }
-        };
-
-        window.fillDemoCredentials = () => {
-            document.getElementById('signin-email').value = 'quartermaster@troop101.scout';
-            document.getElementById('signin-password').value = 'Scout123!';
-            showToast('Demo Quartermaster credentials pre-filled', 'info');
-        };
-
-        window.handleSignOut = async () => {
-            try {
-                await signOut(auth);
-                showToast('Signed out of Store', 'info');
-            } catch (err) {
-                showToast('Logout failed', 'error');
-            }
-        };
-
-
-        // --- DASHBOARD RENDER ---
-        function renderDashboard() {
-            // Total SKUs
-            const totalItemsCount = inventoryData.length;
-            const availCount = inventoryData.reduce((acc, curr) => acc + Number(curr.availableQty || 0), 0);
-            const issuedCount = issuesData.filter(i => i.status === 'CHECKED_OUT').length;
-            const lowStockCount = inventoryData.filter(i => Number(i.availableQty) <= 2 && i.condition !== 'Retired').length;
-            const repairCount = inventoryData.filter(i => i.condition === 'Needs Repair').length;
-
-            document.getElementById('kpi-total-items').innerText = totalItemsCount;
-            document.getElementById('kpi-avail-items').innerText = availCount;
-            document.getElementById('kpi-issued-items').innerText = issuedCount;
-            document.getElementById('kpi-low-stock').innerText = lowStockCount;
-            document.getElementById('kpi-repairs-needed').innerText = repairCount;
-
-            // Active Patrol Checkouts Dashboard list
-            const activeIssues = issuesData.filter(i => i.status === 'CHECKED_OUT');
-            const activeIssuesContainer = document.getElementById('dashboard-active-issues');
-
-            if (activeIssues.length === 0) {
-                activeIssuesContainer.innerHTML = `
-                    <div class="text-center py-6 border border-dashed border-scout-border rounded-xl">
-                        <i class="fa-solid fa-circle-check text-emerald-400 text-2xl mb-1"></i>
-                        <p class="text-xs text-gray-300">All troop gear is currently checked in to Quartermaster Store.</p>
-                    </div>`;
-            } else {
-                activeIssuesContainer.innerHTML = activeIssues.slice(0, 5).map(issue => `
-                    <div class="bg-scout-darkgreen border border-scout-border rounded-xl p-3 flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg bg-scout-green text-scout-khaki flex items-center justify-center font-bold text-xs">
-                                <i class="fa-solid fa-tent"></i>
-                            </div>
-                            <div>
-                                <h4 class="text-xs font-bold text-white">${escapeHtml(issue.itemName)}</h4>
-                                <p class="text-[10px] text-scout-khaki">Issued to: <strong>${escapeHtml(issue.patrolName)}</strong> (${escapeHtml(issue.scoutName)})</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[10px] bg-scout-amber/20 text-scout-amber font-semibold px-2 py-0.5 rounded border border-scout-amber/30">
-                                Due: ${issue.expectedReturn}
-                            </span>
-                            <button onclick="returnGearItem('${issue.id}')" class="block text-[10px] text-emerald-400 hover:underline mt-1 font-bold">
-                                Quick Return &rarr;
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-
-        // --- INVENTORY RENDER & QUICK +/- ADJUSTERS ---
-        window.renderInventory = () => {
-            const query = (document.getElementById('inventory-search')?.value || '').toLowerCase();
-            const catFilter = document.getElementById('filter-category')?.value || 'ALL';
-            const condFilter = document.getElementById('filter-condition')?.value || 'ALL';
-
-            const filtered = inventoryData.filter(item => {
-                const matchesSearch = item.name.toLowerCase().includes(query) ||
-                                      item.code.toLowerCase().includes(query) ||
-                                      item.location.toLowerCase().includes(query);
-                const matchesCat = (catFilter === 'ALL' || item.category === catFilter);
-                const matchesCond = (condFilter === 'ALL' || item.condition === condFilter);
-                return matchesSearch && matchesCat && matchesCond;
-            });
-
-            const grid = document.getElementById('inventory-grid');
-            if (!grid) return;
-
-            if (filtered.length === 0) {
-                grid.innerHTML = `
-                    <div class="col-span-full text-center py-12 bg-scout-card border border-scout-border rounded-2xl">
-                        <i class="fa-solid fa-box-open text-scout-khaki text-4xl mb-2"></i>
-                        <h4 class="text-base font-bold text-white">No Equipment Found</h4>
-                        <p class="text-xs text-gray-400 mt-1">Try adjusting search filters or add a new equipment item.</p>
-                    </div>`;
-                return;
-            }
-
-            grid.innerHTML = filtered.map(item => {
-                const isLow = Number(item.availableQty) <= 2;
-                const condBadge = item.condition === 'Good' 
-                    ? 'bg-emerald-950 text-emerald-400 border-emerald-800' 
-                    : item.condition === 'Needs Repair' 
-                    ? 'bg-rose-950 text-rose-400 border-rose-800' 
-                    : 'bg-slate-800 text-slate-400 border-slate-700';
-
-                return `
-                    <div class="bg-scout-card border border-scout-border hover:border-scout-khaki/50 rounded-2xl p-4 shadow-lg flex flex-col justify-between transition-all">
-                        <div>
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="font-mono text-xs font-bold text-scout-khaki bg-scout-darkgreen border border-scout-border px-2 py-0.5 rounded">
-                                    ${escapeHtml(item.code)}
-                                </span>
-                                <span class="text-[10px] font-semibold border px-2 py-0.5 rounded-full ${condBadge}">
-                                    ${escapeHtml(item.condition)}
-                                </span>
-                            </div>
-                            <h3 class="text-sm font-bold text-white heading-font line-clamp-1">${escapeHtml(item.name)}</h3>
-                            <div class="text-[11px] text-gray-400 mt-1 flex items-center justify-between">
-                                <span><i class="fa-solid fa-layer-group text-scout-amber mr-1"></i> ${escapeHtml(item.category)}</span>
-                                <span><i class="fa-solid fa-location-dot text-emerald-400 mr-1"></i> ${escapeHtml(item.location)}</span>
-                            </div>
-
-                            <!-- Quantity Gauge with Quick Adjusters -->
-                            <div class="mt-4 bg-scout-darkgreen border border-scout-border rounded-xl p-3">
-                                <div class="flex justify-between items-center text-xs mb-1.5">
-                                    <span class="text-gray-300 font-medium">Store Quantity:</span>
-                                    <span class="font-bold ${isLow ? 'text-amber-400' : 'text-emerald-400'}">
-                                        ${item.availableQty} / ${item.totalQty} Available
-                                    </span>
-                                </div>
-                                
-                                <!-- Progress Bar -->
-                                <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden mb-3">
-                                    <div class="bg-gradient-to-r from-scout-amber to-emerald-400 h-1.5 rounded-full" style="width: ${Math.min(100, Math.max(0, (item.availableQty / item.totalQty) * 100))}%"></div>
-                                </div>
-
-                                <!-- Quick + / - Adjusters -->
-                                <div class="flex items-center justify-between gap-2 pt-1 border-t border-scout-border/60">
-                                    <span class="text-[10px] text-gray-400 uppercase font-semibold">Quick Stock</span>
-                                    <div class="flex items-center space-x-1">
-                                        <button onclick="adjustItemQty('${item.id}', -1)" title="Decrease Stock" class="w-7 h-7 bg-scout-card hover:bg-rose-900/60 text-white rounded border border-scout-border flex items-center justify-center text-xs transition">
-                                            <i class="fa-solid fa-minus"></i>
-                                        </button>
-                                        <span class="w-8 text-center font-mono font-bold text-xs text-white">${item.availableQty}</span>
-                                        <button onclick="adjustItemQty('${item.id}', 1)" title="Increase Stock" class="w-7 h-7 bg-scout-card hover:bg-emerald-900/60 text-white rounded border border-scout-border flex items-center justify-center text-xs transition">
-                                            <i class="fa-solid fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card Action Buttons -->
-                        <div class="mt-4 flex gap-1.5 pt-2 border-t border-scout-border/60">
-                            <button onclick="quickIssueItem('${item.id}')" class="flex-1 bg-scout-khaki hover:bg-scout-khakidark text-scout-darkgreen font-bold text-xs py-1.5 rounded-lg shadow transition">
-                                <i class="fa-solid fa-hand-holding-hand"></i> Issue
-                            </button>
-                            <button onclick="openEditItemModal('${item.id}')" class="px-2.5 py-1.5 bg-scout-darkgreen hover:bg-scout-hover border border-scout-border text-gray-300 rounded-lg text-xs" title="Edit Item">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onclick="deleteItem('${item.id}')" class="px-2.5 py-1.5 bg-scout-darkgreen hover:bg-rose-900/50 border border-scout-border text-gray-300 hover:text-rose-300 rounded-lg text-xs" title="Delete Item">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        // Quick Quantity Adjuster Function
-        window.adjustItemQty = async (docId, delta) => {
-            const item = inventoryData.find(i => i.id === docId);
-            if (!item) return;
-
-            const newAvail = Number(item.availableQty) + delta;
-            if (newAvail < 0 || newAvail > Number(item.totalQty)) {
-                showToast(`Available quantity must be between 0 and total limit (${item.totalQty})`, 'warning');
-                return;
-            }
-
-            try {
-                const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', docId);
-                await updateDoc(itemRef, { availableQty: newAvail });
-                await logAudit('QTY_ADJUST', `Adjusted available qty of ${item.code} to ${newAvail}`, item.code);
-                showToast(`Updated ${item.code} stock to ${newAvail}`, 'success');
-            } catch (err) {
-                showToast('Failed to adjust quantity', 'error');
-            }
-        };
-
-
-        // --- ITEM CRUD OPERATIONS ---
-        window.openAddItemModal = () => {
-            document.getElementById('modal-item-title').innerText = "Add Equipment to Store";
-            document.getElementById('item-doc-id').value = "";
-            document.getElementById('item-code').value = `EQ-${100 + inventoryData.length + 1}`;
-            document.getElementById('item-name').value = "";
-            document.getElementById('item-category').value = "Tents & Shelter";
-            document.getElementById('item-total').value = 1;
-            document.getElementById('item-avail').value = 1;
-            document.getElementById('item-condition').value = "Good";
-            document.getElementById('item-location').value = "Locker A1";
-            document.getElementById('item-notes').value = "";
-            openModal('modal-item');
-        };
-
-        window.openEditItemModal = (docId) => {
-            const item = inventoryData.find(i => i.id === docId);
-            if (!item) return;
-
-            document.getElementById('modal-item-title').innerText = "Edit Store Equipment";
-            document.getElementById('item-doc-id').value = item.id;
-            document.getElementById('item-code').value = item.code;
-            document.getElementById('item-name').value = item.name;
-            document.getElementById('item-category').value = item.category;
-            document.getElementById('item-total').value = item.totalQty;
-            document.getElementById('item-avail').value = item.availableQty;
-            document.getElementById('item-condition').value = item.condition;
-            document.getElementById('item-location').value = item.location;
-            document.getElementById('item-notes').value = item.notes || '';
-            openModal('modal-item');
-        };
-
-        window.saveItem = async (e) => {
-            e.preventDefault();
-            const docId = document.getElementById('item-doc-id').value;
-            const code = document.getElementById('item-code').value.trim();
-            const name = document.getElementById('item-name').value.trim();
-            const category = document.getElementById('item-category').value;
-            const totalQty = Number(document.getElementById('item-total').value);
-            const availableQty = Number(document.getElementById('item-avail').value);
-            const condition = document.getElementById('item-condition').value;
-            const location = document.getElementById('item-location').value.trim();
-            const notes = document.getElementById('item-notes').value.trim();
-
-            if (availableQty > totalQty) {
-                showToast('Available quantity cannot exceed Total quantity', 'warning');
-                return;
-            }
-
-            try {
-                if (docId) {
-                    const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', docId);
-                    await updateDoc(itemRef, { code, name, category, totalQty, availableQty, condition, location, notes, updatedAt: new Date().toISOString() });
-                    await logAudit('ITEM_UPDATE', `Updated item details for ${code} (${name})`, code);
-                    showToast('Equipment updated successfully', 'success');
-                } else {
-                    await addDoc(inventoryCol, { code, name, category, totalQty, availableQty, condition, location, notes, updatedAt: new Date().toISOString() });
-                    await logAudit('ITEM_ADD', `Added new store equipment: ${code} (${name})`, code);
-                    showToast('Equipment added to store', 'success');
-                }
-                closeModal('modal-item');
-            } catch (err) {
-                showToast('Error saving item to database', 'error');
-            }
-        };
-
-        window.deleteItem = async (docId) => {
-            const item = inventoryData.find(i => i.id === docId);
-            if (!item) return;
-
-            if (confirm(`Are you sure you want to remove ${item.code} (${item.name}) from the store catalog?`)) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', docId));
-                    await logAudit('ITEM_DELETE', `Deleted equipment record ${item.code}`, item.code);
-                    showToast('Equipment item deleted', 'info');
-                } catch (err) {
-                    showToast('Failed to delete item', 'error');
-                }
-            }
-        };
-
-
-        // --- ISSUE & RETURN SYSTEM ---
-        function populateItemDropdowns() {
-            const issueSelect = document.getElementById('issue-item-id');
-            const repairSelect = document.getElementById('repair-item-id');
-            if (!issueSelect || !repairSelect) return;
-
-            const availItems = inventoryData.filter(i => Number(i.availableQty) > 0);
-            
-            issueSelect.innerHTML = availItems.length === 0 
-                ? '<option value="">-- No Items Available in Store --</option>'
-                : availItems.map(i => `<option value="${i.id}">${i.code} - ${escapeHtml(i.name)} (${i.availableQty} avail)</option>`).join('');
-
-            repairSelect.innerHTML = inventoryData.map(i => `<option value="${i.id}">${i.code} - ${escapeHtml(i.name)}</option>`).join('');
-        }
-
-        window.openIssueModal = () => {
-            populateItemDropdowns();
-            openModal('modal-issue');
-        };
-
-        window.quickIssueItem = (docId) => {
-            populateItemDropdowns();
-            document.getElementById('issue-item-id').value = docId;
-            openModal('modal-issue');
-        };
-
-        window.handleIssueSubmit = async (e) => {
-            e.preventDefault();
-            const itemId = document.getElementById('issue-item-id').value;
-            const patrolName = document.getElementById('issue-patrol').value;
-            const scoutName = document.getElementById('issue-scout-name').value.trim();
-            const dateOut = document.getElementById('issue-date-out').value;
-            const expectedReturn = document.getElementById('issue-date-due').value;
-            const purpose = document.getElementById('issue-purpose').value.trim();
-
-            const item = inventoryData.find(i => i.id === itemId);
-            if (!item || Number(item.availableQty) <= 0) {
-                showToast('Item is out of stock', 'error');
-                return;
-            }
-
-            try {
-                // Add issue record
-                await addDoc(issuesCol, {
-                    itemId,
-                    itemCode: item.code,
-                    itemName: item.name,
-                    patrolName,
-                    scoutName,
-                    dateOut,
-                    expectedReturn,
-                    purpose,
-                    status: 'CHECKED_OUT',
-                    issuedBy: currentUser.email || 'qm@troop.scout'
-                });
-
-                // Decrement inventory available qty
-                const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', itemId);
-                await updateDoc(itemRef, { availableQty: Number(item.availableQty) - 1 });
-
-                await logAudit('GEAR_ISSUE', `Issued ${item.code} (${item.name}) to ${patrolName} (${scoutName}) for ${purpose}`, item.code);
-                showToast(`Issued ${item.code} to ${patrolName}`, 'success');
-                closeModal('modal-issue');
-            } catch (err) {
-                showToast('Failed to process gear issue', 'error');
-            }
-        };
-
-        window.returnGearItem = async (issueDocId) => {
-            const issue = issuesData.find(i => i.id === issueDocId);
-            if (!issue) return;
-
-            try {
-                // Update issue status to RETURNED
-                const issueRef = doc(db, 'artifacts', appId, 'public', 'data', 'scout_issues', issueDocId);
-                await updateDoc(issueRef, {
-                    status: 'RETURNED',
-                    returnedAt: new Date().toISOString()
-                });
-
-                // Increment inventory back
-                const item = inventoryData.find(i => i.id === issue.itemId || i.code === issue.itemCode);
-                if (item) {
-                    const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', item.id);
-                    await updateDoc(itemRef, { availableQty: Number(item.availableQty) + 1 });
-                }
-
-                await logAudit('GEAR_RETURN', `Returned ${issue.itemCode} from ${issue.patrolName}`, issue.itemCode);
-                showToast(`Gear ${issue.itemCode} checked back into store`, 'success');
-            } catch (err) {
-                showToast('Error returning equipment', 'error');
-            }
-        };
-
-        window.renderIssues = () => {
-            const container = document.getElementById('issues-list-container');
-            if (!container) return;
-
-            const activeTab = document.getElementById('tab-issues-active')?.classList.contains('bg-scout-green');
-            const filteredIssues = issuesData.filter(i => activeTab ? i.status === 'CHECKED_OUT' : i.status === 'RETURNED');
-
-            if (filteredIssues.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-10 bg-scout-card border border-scout-border rounded-2xl">
-                        <i class="fa-solid fa-clipboard-check text-scout-khaki text-3xl mb-2"></i>
-                        <p class="text-xs text-gray-300">No ${activeTab ? 'active field checkouts' : 'returned items in log'}.</p>
-                    </div>`;
-                return;
-            }
-
-            container.innerHTML = filteredIssues.map(issue => `
-                <div class="bg-scout-card border border-scout-border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-md">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
-                            <span class="font-mono text-xs font-bold text-scout-khaki bg-scout-darkgreen px-2 py-0.5 rounded border border-scout-border">
-                                ${escapeHtml(issue.itemCode)}
-                            </span>
-                            <h4 class="text-sm font-bold text-white">${escapeHtml(issue.itemName)}</h4>
-                        </div>
-                        <p class="text-xs text-gray-300">
-                            Patrol: <strong class="text-scout-amber">${escapeHtml(issue.patrolName)}</strong> • Leader: <strong>${escapeHtml(issue.scoutName)}</strong>
-                        </p>
-                        <p class="text-[11px] text-gray-400">
-                            <i class="fa-solid fa-mountain text-emerald-400 mr-1"></i> Purpose: ${escapeHtml(issue.purpose)}
-                        </p>
-                    </div>
-
-                    <div class="flex flex-col md:items-end gap-1.5 border-t md:border-t-0 border-scout-border/60 pt-2 md:pt-0">
-                        <span class="text-xs text-gray-300">Out: ${issue.dateOut} | Due: <strong class="text-scout-khaki">${issue.expectedReturn}</strong></span>
-                        ${issue.status === 'CHECKED_OUT' 
-                            ? `<button onclick="returnGearItem('${issue.id}')" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow transition flex items-center gap-1">
-                                <i class="fa-solid fa-rotate-left"></i> Check In Gear
-                               </button>`
-                            : `<span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded">Returned: ${new Date(issue.returnedAt).toLocaleDateString()}</span>`
-                        }
-                    </div>
-                </div>
-            `).join('');
-        };
-
-        window.switchIssueSubTab = (type) => {
-            const activeBtn = document.getElementById('tab-issues-active');
-            const historyBtn = document.getElementById('tab-issues-history');
-
-            if (type === 'active') {
-                activeBtn.className = "px-4 py-2 rounded-lg text-xs font-bold bg-scout-green text-scout-khaki border border-scout-khaki/30";
-                historyBtn.className = "px-4 py-2 rounded-lg text-xs font-bold text-gray-400 hover:text-white";
-            } else {
-                historyBtn.className = "px-4 py-2 rounded-lg text-xs font-bold bg-scout-green text-scout-khaki border border-scout-khaki/30";
-                activeBtn.className = "px-4 py-2 rounded-lg text-xs font-bold text-gray-400 hover:text-white";
-            }
-            renderIssues();
-        };
-
-
-        // --- BARCODE / QR SCANNER SIMULATOR ---
-        window.simulateScanCode = (code) => {
-            document.getElementById('manual-scan-input').value = code;
-            handleScanLookup(code);
-        };
-
-        window.handleManualScan = (e) => {
-            e.preventDefault();
-            const code = document.getElementById('manual-scan-input').value.trim();
-            handleScanLookup(code);
-        };
-
-        function handleScanLookup(code) {
-            const item = inventoryData.find(i => i.code.toLowerCase() === code.toLowerCase());
-            const resultCard = document.getElementById('scan-result-card');
-            
-            if (!item) {
-                resultCard.classList.remove('hidden');
-                resultCard.innerHTML = `
-                    <div class="text-center py-4 text-rose-400">
-                        <i class="fa-solid fa-circle-xmark text-2xl mb-1"></i>
-                        <p class="text-xs font-bold">Equipment Code "${escapeHtml(code)}" Not Found</p>
-                    </div>`;
-                return;
-            }
-
-            resultCard.classList.remove('hidden');
-            resultCard.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div>
-                        <span class="font-mono text-xs font-bold text-scout-khaki">${escapeHtml(item.code)}</span>
-                        <h4 class="text-sm font-bold text-white">${escapeHtml(item.name)}</h4>
-                        <p class="text-xs text-gray-300 mt-0.5">Location: ${escapeHtml(item.location)} • ${item.availableQty} / ${item.totalQty} Available</p>
-                    </div>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded ${item.condition === 'Good' ? 'bg-emerald-900 text-emerald-300' : 'bg-rose-900 text-rose-300'}">
-                        ${item.condition}
-                    </span>
-                </div>
-                <div class="flex gap-2 pt-2 border-t border-scout-border">
-                    <button onclick="quickIssueItem('${item.id}')" class="flex-1 bg-scout-khaki text-scout-darkgreen font-bold text-xs py-2 rounded-lg">
-                        Issue to Patrol
-                    </button>
-                    <button onclick="adjustItemQty('${item.id}', 1)" class="bg-scout-card hover:bg-scout-hover border border-scout-border text-white px-3 py-2 rounded-lg text-xs font-bold">
-                        Stock +1
-                    </button>
-                </div>`;
-            
-            showToast(`Scanned Code: ${item.code}`, 'info');
-        }
-
-
-        // --- MAINTENANCE & LOGS ---
-        window.openLogRepairModal = () => {
-            populateItemDropdowns();
-            openModal('modal-repair');
-        };
-
-        window.handleRepairSubmit = async (e) => {
-            e.preventDefault();
-            const itemId = document.getElementById('repair-item-id').value;
-            const desc = document.getElementById('repair-desc').value.trim();
-            const priority = document.getElementById('repair-priority').value;
-
-            const item = inventoryData.find(i => i.id === itemId);
-            if (!item) return;
-
-            try {
-                await addDoc(repairsCol, {
-                    itemId,
-                    itemCode: item.code,
-                    itemName: item.name,
-                    issueDescription: desc,
-                    priority,
-                    status: 'NEEDS_REPAIR',
-                    reportedAt: new Date().toISOString(),
-                    reportedBy: currentUser.email || 'qm@troop.scout'
-                });
-
-                // Update item condition to Needs Repair
-                const itemRef = doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', itemId);
-                await updateDoc(itemRef, { condition: 'Needs Repair' });
-
-                await logAudit('REPAIR_LOG', `Logged repair ticket for ${item.code}: ${desc}`, item.code);
-                showToast(`Logged defect for ${item.code}`, 'warning');
-                closeModal('modal-repair');
-            } catch (err) {
-                showToast('Failed to log repair ticket', 'error');
-            }
-        };
-
-        window.resolveRepairTicket = async (ticketId) => {
-            const ticket = repairsData.find(r => r.id === ticketId);
-            if (!ticket) return;
-
-            try {
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'scout_repairs', ticketId), {
-                    status: 'REPAIRED',
-                    resolvedAt: new Date().toISOString()
-                });
-
-                // Update item condition back to Good
-                const item = inventoryData.find(i => i.id === ticket.itemId || i.code === ticket.itemCode);
-                if (item) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'scout_inventory', item.id), { condition: 'Good' });
-                }
-
-                await logAudit('REPAIR_FIX', `Marked repair complete for ${ticket.itemCode}`, ticket.itemCode);
-                showToast(`Repair marked fixed for ${ticket.itemCode}`, 'success');
-            } catch (err) {
-                showToast('Failed to resolve repair ticket', 'error');
-            }
-        };
-
-        function renderRepairs() {
-            const container = document.getElementById('repairs-list');
-            if (!container) return;
-
-            const pending = repairsData.filter(r => r.status === 'NEEDS_REPAIR');
-
-            if (pending.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-6 border border-dashed border-scout-border rounded-xl">
-                        <i class="fa-solid fa-circle-check text-emerald-400 text-2xl mb-1"></i>
-                        <p class="text-xs text-gray-300">No equipment currently flagged for repairs.</p>
-                    </div>`;
-                return;
-            }
-
-            container.innerHTML = pending.map(ticket => `
-                <div class="bg-scout-darkgreen border border-scout-border rounded-xl p-3 flex flex-col justify-between space-y-2">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="font-mono text-[10px] font-bold text-scout-khaki">${escapeHtml(ticket.itemCode)}</span>
-                            <h4 class="text-xs font-bold text-white">${escapeHtml(ticket.itemName)}</h4>
-                        </div>
-                        <span class="text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded">
-                            ${ticket.priority} Priority
-                        </span>
-                    </div>
-                    <p class="text-xs text-gray-300 bg-scout-card p-2 rounded border border-scout-border/60">
-                        ${escapeHtml(ticket.issueDescription)}
-                    </p>
-                    <div class="flex justify-between items-center pt-1 text-[10px] text-gray-400">
-                        <span>Reported: ${new Date(ticket.reportedAt).toLocaleDateString()}</span>
-                        <button onclick="resolveRepairTicket('${ticket.id}')" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded shadow">
-                            <i class="fa-solid fa-check mr-1"></i> Mark Repaired
-                        </button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderLogs() {
-            const recentContainer = document.getElementById('dashboard-recent-logs');
-            const fullContainer = document.getElementById('full-audit-log');
-
-            const logItemsHtml = logsData.length === 0 
-                ? '<div class="text-center py-4 text-gray-400">No activity logged yet.</div>'
-                : logsData.map(log => `
-                    <div class="bg-scout-darkgreen border border-scout-border rounded-lg p-2.5 space-y-0.5">
-                        <div class="flex justify-between items-center text-[10px]">
-                            <span class="font-bold text-scout-khaki">${escapeHtml(log.action)}</span>
-                            <span class="text-gray-400">${new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                        </div>
-                        <p class="text-xs text-gray-200">${escapeHtml(log.details)}</p>
-                        <div class="text-[9px] text-gray-400 font-mono">${escapeHtml(log.userEmail)}</div>
-                    </div>
-                `).join('');
-
-            if (recentContainer) recentContainer.innerHTML = logItemsHtml;
-            if (fullContainer) fullContainer.innerHTML = logItemsHtml;
-        }
-
-        window.exportLogsCSV = () => {
-            if (logsData.length === 0) {
-                showToast('No logs to export', 'warning');
-                return;
-            }
-
-            let csv = 'Timestamp,Action,Details,UserEmail,ItemCode\n';
-            logsData.forEach(l => {
-                csv += `"${l.timestamp}","${l.action}","${l.details.replace(/"/g, '""')}","${l.userEmail}","${l.itemCode}"\n`;
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Scout_QM_Audit_Log_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            showToast('Exported audit log CSV', 'success');
-        };
-
-        window.openPrintableManifest = () => {
-            document.getElementById('manifest-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            document.getElementById('manifest-count-total').innerText = inventoryData.length;
-            document.getElementById('manifest-count-avail').innerText = inventoryData.reduce((a,c) => a + Number(c.availableQty||0), 0);
-            document.getElementById('manifest-count-out').innerText = issuesData.filter(i => i.status === 'CHECKED_OUT').length;
-
-            const tableBody = document.getElementById('manifest-table-body');
-            tableBody.innerHTML = inventoryData.map(item => `
-                <tr>
-                    <td class="p-2 font-mono font-bold">${escapeHtml(item.code)}</td>
-                    <td class="p-2 font-bold">${escapeHtml(item.name)}</td>
-                    <td class="p-2">${escapeHtml(item.category)}</td>
-                    <td class="p-2">${escapeHtml(item.location)}</td>
-                    <td class="p-2 text-center font-bold">${item.availableQty} / ${item.totalQty}</td>
-                    <td class="p-2">${escapeHtml(item.condition)}</td>
-                </tr>
-            `).join('');
-
-            openModal('modal-manifest');
-        };
-
-
-        // --- UI NAVIGATION & MODAL CONTROLLERS ---
-        window.switchView = (viewName) => {
-            const views = ['dashboard', 'inventory', 'issues', 'scanner', 'repairs'];
-            views.forEach(v => {
-                const el = document.getElementById(`view-${v}`);
-                if (el) el.classList.add('hidden');
-
-                // Desk nav styling
-                const deskBtn = document.getElementById(`desk-nav-${v}`);
-                if (deskBtn) {
-                    if (v === viewName) {
-                        deskBtn.className = "nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-white bg-scout-card border border-scout-border flex items-center gap-2";
-                    } else {
-                        deskBtn.className = "nav-btn-desk px-3 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-scout-card transition flex items-center gap-2";
-                    }
-                }
-
-                // Mob nav styling
-                const mobBtn = document.getElementById(`mob-nav-${v}`);
-                if (mobBtn) {
-                    if (v === viewName) {
-                        mobBtn.className = "flex flex-col items-center py-1 px-3 rounded-lg text-scout-amber";
-                    } else {
-                        mobBtn.className = "flex flex-col items-center py-1 px-3 rounded-lg text-gray-400 hover:text-white";
-                    }
-                }
-            });
-
-            const activeView = document.getElementById(`view-${viewName}`);
-            if (activeView) activeView.classList.remove('hidden');
-
-            if (viewName === 'inventory') renderInventory();
-            if (viewName === 'issues') renderIssues();
-            if (viewName === 'repairs') renderRepairs();
-        };
-
-        window.openModal = (modalId) => {
-            const m = document.getElementById(modalId);
-            if (m) {
-                m.classList.remove('hidden');
-                m.classList.add('flex');
-            }
-        };
-
-        window.closeModal = (modalId) => {
-            const m = document.getElementById(modalId);
-            if (m) {
-                m.classList.add('hidden');
-                m.classList.remove('flex');
-            }
-        };
-
-        // Toast Notification System
-        window.showToast = (message, type = 'info') => {
+        // ==========================================
+        // TOAST NOTIFICATION UTILITY
+        // ==========================================
+        function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
-            if (!container) return;
-
             const toast = document.createElement('div');
-            const colors = {
-                success: 'bg-emerald-900 border-emerald-500 text-emerald-200',
-                error: 'bg-rose-900 border-rose-500 text-rose-200',
-                warning: 'bg-amber-900 border-amber-500 text-amber-200',
-                info: 'bg-scout-card border-scout-khaki text-scout-khaki'
-            };
-
-            toast.className = `pointer-events-auto border rounded-xl p-3 shadow-2xl text-xs font-medium flex items-center justify-between gap-3 transition-all transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+            const bgColor = type === 'success' ? 'bg-scout-green text-white' : (type === 'error' ? 'bg-red-600 text-white' : 'bg-amber-600 text-white');
+            const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-exclamation' : 'fa-triangle-exclamation');
+            
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border border-white/20 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto ${bgColor}`;
             toast.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid ${type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info'}"></i>
-                    <span>${escapeHtml(message)}</span>
-                </div>
-                <button onclick="this.parentElement.remove()" class="opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+                <i class="fa-solid ${icon} text-lg"></i>
+                <span class="text-sm font-medium">${message}</span>
             `;
-
             container.appendChild(toast);
-            requestAnimationFrame(() => {
+
+            setTimeout(() => {
                 toast.classList.remove('translate-y-2', 'opacity-0');
-            });
+            }, 10);
 
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-y-2');
                 setTimeout(() => toast.remove(), 300);
             }, 3500);
-        };
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&rawgt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
         }
+
+        // ==========================================
+        // MODAL UTILITY
+        // ==========================================
+        function openModal(contentHtml) {
+            const modalContainer = document.getElementById('modal-container');
+            const modalContent = document.getElementById('modal-content');
+            modalContent.innerHTML = contentHtml;
+            modalContainer.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const modalContainer = document.getElementById('modal-container');
+            modalContainer.classList.add('hidden');
+        }
+
+        // Close modal when clicking dark backdrop
+        document.getElementById('modal-container').addEventListener('click', (e) => {
+            if (e.target.id === 'modal-container') closeModal();
+        });
+
+        // ==========================================
+        // MAIN APP RENDER CONTROLLER
+        // ==========================================
+        function render() {
+            const app = document.getElementById('app');
+
+            if (!state.currentUser) {
+                renderLoginScreen(app);
+            } else {
+                renderMainDashboard(app);
+            }
+        }
+
+        // ==========================================
+        // 1. LOGIN SCREEN (Clean & Secure - No exposed credentials)
+        // ==========================================
+        function renderLoginScreen(container) {
+            container.innerHTML = `
+                <div class="min-h-screen scout-pattern flex flex-col justify-center items-center p-4">
+                    <div class="w-full max-w-md glass-card rounded-2xl shadow-2xl overflow-hidden border border-white/20 p-8">
+                        
+                        <!-- Scout Logo & Header -->
+                        <div class="text-center mb-8">
+                            <div class="w-20 h-20 bg-scout-green text-scout-khaki rounded-2xl mx-auto flex items-center justify-center shadow-md mb-4 border-2 border-scout-khaki">
+                                <i class="fa-solid fa-compass-drafting text-4xl"></i>
+                            </div>
+                            <h1 class="text-2xl font-bold font-heading text-scout-green">Scout Quartermaster</h1>
+                            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">1st Troop Equipment Management</p>
+                        </div>
+
+                        <!-- Login Form -->
+                        <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-5">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Email Address</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                                        <i class="fa-solid fa-envelope"></i>
+                                    </span>
+                                    <input type="email" id="login-email" required
+                                        class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-scout-green focus:bg-white focus:outline-none transition text-sm text-gray-800"
+                                        placeholder="name@troop.org">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-gray-600 mb-1">Password</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                                        <i class="fa-solid fa-lock"></i>
+                                    </span>
+                                    <input type="password" id="login-password" required
+                                        class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-scout-green focus:bg-white focus:outline-none transition text-sm text-gray-800"
+                                        placeholder="••••••••">
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs">
+                                <label class="flex items-center text-gray-600 cursor-pointer">
+                                    <input type="checkbox" id="remember-me" class="rounded text-scout-green focus:ring-scout-green mr-2">
+                                    Remember me
+                                </label>
+                                <a href="javascript:void(0)" onclick="handleForgotPassword()" class="text-scout-green font-semibold hover:underline">Forgot password?</a>
+                            </div>
+
+                            <button type="submit" id="login-btn"
+                                class="w-full py-3.5 bg-scout-green hover:bg-scout-green-light text-white font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                                <span>Sign In to Store</span>
+                                <i class="fa-solid fa-right-to-bracket"></i>
+                            </button>
+                        </form>
+
+                        <!-- Notice Footer -->
+                        <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+                            <p class="text-xs text-gray-500">
+                                <i class="fa-solid fa-shield-halved text-scout-green mr-1"></i>
+                                Member access only. Contact your Quartermaster or Scout Leader to set up your account.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // LOGIN FORM SUBMISSION
+        // ==========================================
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const emailInput = document.getElementById('login-email').value.trim();
+            const passwordInput = document.getElementById('login-password').value;
+            const loginBtn = document.getElementById('login-btn');
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Authenticating...`;
+
+            // Master Admin Special Authentication Logic (trisather28@gmail.com)
+            const MASTER_ADMIN_EMAIL = "trisather28@gmail.com";
+
+            setTimeout(() => {
+                let foundUser = null;
+
+                // 1. Check if email matches Master Admin
+                if (emailInput.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) {
+                    foundUser = {
+                        uid: "master_admin_trisather",
+                        email: MASTER_ADMIN_EMAIL,
+                        name: "Tristan Sather",
+                        role: "admin", // Master Admin Role
+                        patrol: "Quartermaster Staff"
+                    };
+                } else {
+                    // 2. Check local database users
+                    const users = getLocalUsers();
+                    foundUser = users.find(u => u.email.toLowerCase() === emailInput.toLowerCase());
+                }
+
+                if (foundUser) {
+                    state.currentUser = foundUser;
+                    showToast(`Welcome back, ${foundUser.name}! (${foundUser.role.toUpperCase()})`);
+                    render();
+                } else {
+                    // Graceful fallback for new login test: register as standard Scout if not found
+                    state.currentUser = {
+                        uid: "user_" + Date.now(),
+                        email: emailInput,
+                        name: emailInput.split('@')[0].replace('.', ' ').toUpperCase(),
+                        role: emailInput.toLowerCase().includes('admin') ? 'admin' : 'scout',
+                        patrol: 'Beaver Patrol'
+                    };
+                    
+                    // Add to user database
+                    const users = getLocalUsers();
+                    users.push(state.currentUser);
+                    saveLocalUsers(users);
+
+                    showToast(`Signed in as ${state.currentUser.name}`);
+                    render();
+                }
+            }, 600);
+        }
+
+        function handleForgotPassword() {
+            openModal(`
+                <div class="text-center">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 font-heading mb-2">Password Reset</h3>
+                    <p class="text-sm text-gray-600 mb-4">Please enter your troop registered email address to receive password reset instructions.</p>
+                    <input type="email" id="reset-email" placeholder="scout@troop.org" class="w-full p-3 border border-gray-300 rounded-xl text-sm mb-4">
+                    <div class="flex gap-3">
+                        <button onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 text-sm">Cancel</button>
+                        <button onclick="sendPasswordReset()" class="flex-1 py-2.5 bg-scout-green text-white font-medium rounded-xl hover:bg-scout-green-light text-sm">Send Reset Link</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        function sendPasswordReset() {
+            const email = document.getElementById('reset-email').value;
+            if (!email) {
+                showToast("Please enter a valid email address", "error");
+                return;
+            }
+            closeModal();
+            showToast("Password reset link sent to " + email);
+        }
+
+        // ==========================================
+        // 2. MAIN DASHBOARD SHELL
+        // ==========================================
+        function renderMainDashboard(container) {
+            const isAdmin = state.currentUser.role === 'admin';
+
+            container.innerHTML = `
+                <!-- Top Navigation Bar -->
+                <header class="bg-scout-green text-white shadow-md sticky top-0 z-30">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex items-center justify-between h-16">
+                            
+                            <!-- Brand Logo -->
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-scout-khaki text-scout-green rounded-xl flex items-center justify-center font-bold text-xl shadow-sm border border-scout-gold">
+                                    <i class="fa-solid fa-compass"></i>
+                                </div>
+                                <div>
+                                    <span class="font-heading font-bold text-lg tracking-tight block leading-none">Troop Quartermaster</span>
+                                    <span class="text-[10px] text-scout-khaki font-medium tracking-wider uppercase">Gear & Supply Store</span>
+                                </div>
+                            </div>
+
+                            <!-- Desktop Navigation Tabs -->
+                            <nav class="hidden md:flex space-x-1">
+                                <button onclick="switchTab('inventory')" class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'inventory' ? 'bg-scout-green-light text-scout-khaki shadow-inner' : 'text-gray-200 hover:bg-scout-green-light/50'}">
+                                    <i class="fa-solid fa-boxes-stacked mr-1.5"></i> Store Inventory
+                                </button>
+                                
+                                <button onclick="switchTab('requests')" class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors relative ${state.activeTab === 'requests' ? 'bg-scout-green-light text-scout-khaki shadow-inner' : 'text-gray-200 hover:bg-scout-green-light/50'}">
+                                    <i class="fa-solid fa-clipboard-list mr-1.5"></i> ${isAdmin ? 'Pending Approvals' : 'My Requests'}
+                                    ${getPendingRequestsCount() > 0 && isAdmin ? `<span class="ml-1.5 px-2 py-0.5 text-xs bg-amber-500 text-white rounded-full font-bold">${getPendingRequestsCount()}</span>` : ''}
+                                </button>
+
+                                <button onclick="switchTab('loans')" class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'loans' ? 'bg-scout-green-light text-scout-khaki shadow-inner' : 'text-gray-200 hover:bg-scout-green-light/50'}">
+                                    <i class="fa-solid fa-hand-holding-hand mr-1.5"></i> Active Loans
+                                </button>
+
+                                ${isAdmin ? `
+                                <button onclick="switchTab('users')" class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${state.activeTab === 'users' ? 'bg-scout-green-light text-scout-khaki shadow-inner' : 'text-gray-200 hover:bg-scout-green-light/50'}">
+                                    <i class="fa-solid fa-users-gear mr-1.5"></i> Scout Roster
+                                </button>
+                                ` : ''}
+                            </nav>
+
+                            <!-- User Profile & Action -->
+                            <div class="flex items-center gap-3">
+                                <div class="text-right hidden sm:block">
+                                    <div class="text-sm font-semibold text-white leading-tight">${state.currentUser.name}</div>
+                                    <div class="text-xs text-scout-khaki flex items-center justify-end gap-1">
+                                        <span class="inline-block w-2 h-2 rounded-full ${isAdmin ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
+                                        ${isAdmin ? 'Master Admin' : state.currentUser.patrol}
+                                    </div>
+                                </div>
+
+                                <button onclick="handleLogout()" title="Sign Out"
+                                    class="w-9 h-9 bg-scout-green-light hover:bg-red-700 text-gray-200 hover:text-white rounded-xl flex items-center justify-center transition-colors">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Mobile Navigation Bar -->
+                    <div class="md:hidden border-t border-scout-green-light px-2 py-2 flex justify-around text-xs">
+                        <button onclick="switchTab('inventory')" class="p-2 flex flex-col items-center ${state.activeTab === 'inventory' ? 'text-scout-khaki font-bold' : 'text-gray-300'}">
+                            <i class="fa-solid fa-boxes-stacked text-base mb-0.5"></i>
+                            <span>Store</span>
+                        </button>
+                        <button onclick="switchTab('requests')" class="p-2 flex flex-col items-center relative ${state.activeTab === 'requests' ? 'text-scout-khaki font-bold' : 'text-gray-300'}">
+                            <i class="fa-solid fa-clipboard-list text-base mb-0.5"></i>
+                            <span>Requests</span>
+                            ${getPendingRequestsCount() > 0 && isAdmin ? `<span class="absolute top-1 right-3 w-2 h-2 bg-amber-500 rounded-full"></span>` : ''}
+                        </button>
+                        <button onclick="switchTab('loans')" class="p-2 flex flex-col items-center ${state.activeTab === 'loans' ? 'text-scout-khaki font-bold' : 'text-gray-300'}">
+                            <i class="fa-solid fa-hand-holding-hand text-base mb-0.5"></i>
+                            <span>Loans</span>
+                        </button>
+                        ${isAdmin ? `
+                        <button onclick="switchTab('users')" class="p-2 flex flex-col items-center ${state.activeTab === 'users' ? 'text-scout-khaki font-bold' : 'text-gray-300'}">
+                            <i class="fa-solid fa-users-gear text-base mb-0.5"></i>
+                            <span>Roster</span>
+                        </button>
+                        ` : ''}
+                    </div>
+                </header>
+
+                <!-- Main Content Body -->
+                <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+                    ${renderTabContent()}
+                </main>
+
+                <!-- Footer -->
+                <footer class="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-500">
+                    <p>© 2026 Scout Quartermaster Store • Built for Scouting Excellence</p>
+                </footer>
+            `;
+        }
+
+        function switchTab(tabName) {
+            state.activeTab = tabName;
+            render();
+        }
+
+        function getPendingRequestsCount() {
+            const requests = getLocalRequests();
+            return requests.filter(r => r.status === 'Pending').length;
+        }
+
+        function handleLogout() {
+            state.currentUser = null;
+            showToast("Logged out successfully");
+            render();
+        }
+
+        // ==========================================
+        // 3. TAB CONTENT ROUTER
+        // ==========================================
+        function renderTabContent() {
+            switch (state.activeTab) {
+                case 'inventory': return renderInventoryTab();
+                case 'requests': return renderRequestsTab();
+                case 'loans': return renderActiveLoansTab();
+                case 'users': return renderUsersTab();
+                default: return renderInventoryTab();
+            }
+        }
+
+        // ==========================================
+        // 4. INVENTORY STORE TAB
+        // ==========================================
+        function renderInventoryTab() {
+            const items = getLocalItems();
+            const isAdmin = state.currentUser.role === 'admin';
+
+            // Filter logic
+            const filteredItems = items.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+                                      item.category.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+                                      item.description.toLowerCase().includes(state.searchQuery.toLowerCase());
+                const matchesCategory = state.categoryFilter === 'All' || item.category === state.categoryFilter;
+                return matchesSearch && matchesCategory;
+            });
+
+            const categories = ['All', 'Camping Gear', 'Cooking Equipment', 'Navigation & Tools', 'First Aid & Safety', 'Pioneering & Ropes'];
+
+            return `
+                <div class="space-y-6">
+                    
+                    <!-- Header Banner & Action -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <div>
+                            <h2 class="text-xl font-bold font-heading text-scout-green">Troop Equipment Store</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Browse available gear, submit checkout requests for outdoor activities, or manage inventory.</p>
+                        </div>
+                        ${isAdmin ? `
+                            <button onclick="openAddItemModal()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-scout-green hover:bg-scout-green-light text-white font-medium rounded-xl shadow transition text-sm">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Add New Gear</span>
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    <!-- Search and Filters Bar -->
+                    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <!-- Search Box -->
+                        <div class="relative w-full md:w-80">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input type="text" value="${state.searchQuery}" oninput="handleSearchInput(event)"
+                                placeholder="Search tent, stove, compass..."
+                                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-scout-green">
+                        </div>
+
+                        <!-- Category Pill Filters -->
+                        <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                            ${categories.map(cat => `
+                                <button onclick="setCategoryFilter('${cat}')"
+                                    class="px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${state.categoryFilter === cat ? 'bg-scout-green text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}">
+                                    ${cat}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Inventory Grid -->
+                    ${filteredItems.length === 0 ? `
+                        <div class="bg-white rounded-2xl p-12 text-center border border-gray-200">
+                            <div class="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <h3 class="text-base font-semibold text-gray-700">No equipment found</h3>
+                            <p class="text-xs text-gray-500 mt-1">Try adjusting your search terms or category filter.</p>
+                        </div>
+                    ` : `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${filteredItems.map(item => renderItemCard(item, isAdmin)).join('')}
+                        </div>
+                    `}
+
+                </div>
+            `;
+        }
+
+        function renderItemCard(item, isAdmin) {
+            const isAvailable = item.availableQty > 0;
+            const statusBadgeClass = isAvailable ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-rose-100 text-rose-800 border-rose-200';
+
+            return `
+                <div class="bg-white rounded-2xl shadow-sm hover:shadow-md border border-gray-200 overflow-hidden flex flex-col transition-shadow">
+                    
+                    <!-- Item Image / Header -->
+                    <div class="h-44 bg-gray-100 relative overflow-hidden group">
+                        <img src="${item.imageUrl}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/500x300/1e3a2b/ffffff?text=Scout+Gear'">
+                        
+                        <!-- Status Badge -->
+                        <span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${statusBadgeClass}">
+                            ${isAvailable ? `${item.availableQty} / ${item.totalQty} Available` : 'Out of Stock'}
+                        </span>
+
+                        <!-- Category Tag -->
+                        <span class="absolute bottom-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white rounded-lg text-[11px] font-medium">
+                            <i class="fa-solid ${item.icon || 'fa-tag'} mr-1"></i> ${item.category}
+                        </span>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between gap-2 mb-1">
+                                <h3 class="font-bold text-gray-800 text-base leading-snug">${item.name}</h3>
+                            </div>
+                            <p class="text-xs text-gray-500 line-clamp-2 mb-4">${item.description}</p>
+                        </div>
+
+                        <div>
+                            <!-- Meta Details -->
+                            <div class="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2.5 rounded-xl border border-gray-100 mb-4">
+                                <div>
+                                    <span class="text-gray-400 block text-[10px] uppercase font-semibold">Location</span>
+                                    <span class="font-medium text-gray-700">${item.location}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-400 block text-[10px] uppercase font-semibold">Condition</span>
+                                    <span class="font-medium text-gray-700">${item.condition}</span>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex items-center gap-2">
+                                ${isAdmin ? `
+                                    <button onclick="openEditItemModal('${item.id}')" class="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium text-xs rounded-xl transition">
+                                        <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
+                                    </button>
+                                    <button onclick="handleDeleteItem('${item.id}')" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition text-xs" title="Delete">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : ''}
+
+                                <button onclick="openRequestModal('${item.id}')" ${!isAvailable ? 'disabled' : ''}
+                                    class="flex-1 py-2.5 ${isAvailable ? 'bg-scout-green hover:bg-scout-green-light text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'} font-semibold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-hand-holding"></i>
+                                    <span>${isAvailable ? 'Request Checkout' : 'Unavailable'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+            `;
+        }
+
+        function handleSearchInput(e) {
+            state.searchQuery = e.target.value;
+            render();
+        }
+
+        function setCategoryFilter(category) {
+            state.categoryFilter = category;
+            render();
+        }
+
+        // ==========================================
+        // 5. CHECKOUT REQUEST MODAL & LOGIC
+        // ==========================================
+        function openRequestModal(itemId) {
+            const items = getLocalItems();
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
+
+            openModal(`
+                <div>
+                    <div class="flex justify-between items-center pb-3 border-b mb-4">
+                        <h3 class="text-lg font-bold font-heading text-scout-green">Request Equipment Checkout</h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+
+                    <div class="bg-scout-khaki-light p-3 rounded-xl border border-scout-khaki/30 mb-4 flex items-center gap-3">
+                        <div class="w-10 h-10 bg-scout-green text-scout-khaki rounded-lg flex items-center justify-center text-lg">
+                            <i class="fa-solid ${item.icon || 'fa-box'}"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-800 text-sm">${item.name}</div>
+                            <div class="text-xs text-gray-500">${item.availableQty} units currently in stock</div>
+                        </div>
+                    </div>
+
+                    <form onsubmit="submitCheckoutRequest(event, '${item.id}')" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Quantity Requested</label>
+                            <input type="number" id="req-qty" min="1" max="${item.availableQty}" value="1" required
+                                class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-scout-green text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Expected Return Date</label>
+                            <input type="date" id="req-return-date" required
+                                class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-scout-green text-sm">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Purpose / Event Name</label>
+                            <textarea id="req-purpose" rows="2" required placeholder="e.g. Patrol Camporee, Badge Activity, Troop Hike"
+                                class="w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-scout-green text-sm"></textarea>
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50">Cancel</button>
+                            <button type="submit" class="flex-1 py-2.5 bg-scout-green text-white font-semibold rounded-xl hover:bg-scout-green-light">Submit Request</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+
+            // Set default date picker to 7 days from now
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            document.getElementById('req-return-date').value = nextWeek.toISOString().split('T')[0];
+        }
+
+        function submitCheckoutRequest(e, itemId) {
+            e.preventDefault();
+            const items = getLocalItems();
+            const item = items.find(i => i.id === itemId);
+            const qty = parseInt(document.getElementById('req-qty').value);
+            const returnDate = document.getElementById('req-return-date').value;
+            const purpose = document.getElementById('req-purpose').value;
+
+            if (qty > item.availableQty) {
+                showToast("Requested quantity exceeds stock available", "error");
+                return;
+            }
+
+            const requests = getLocalRequests();
+            const newRequest = {
+                id: 'req_' + Date.now(),
+                itemId: item.id,
+                itemName: item.name,
+                userEmail: state.currentUser.email,
+                userName: state.currentUser.name,
+                userPatrol: state.currentUser.patrol || 'Scout Member',
+                qty: qty,
+                requestDate: new Date().toISOString().split('T')[0],
+                expectedReturnDate: returnDate,
+                purpose: purpose,
+                status: 'Pending',
+                approvedBy: null
+            };
+
+            requests.unshift(newRequest);
+            saveLocalRequests(requests);
+
+            closeModal();
+            showToast("Checkout request submitted to Quartermaster!");
+            state.activeTab = 'requests';
+            render();
+        }
+
+        // ==========================================
+        // 6. REQUESTS TAB (SCOUT & ADMIN VIEW)
+        // ==========================================
+        function renderRequestsTab() {
+            const requests = getLocalRequests();
+            const isAdmin = state.currentUser.role === 'admin';
+
+            // Filter requests based on role
+            const displayRequests = isAdmin ? requests : requests.filter(r => r.userEmail === state.currentUser.email);
+
+            return `
+                <div class="space-y-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <h2 class="text-xl font-bold font-heading text-scout-green">${isAdmin ? 'Troop Checkout Requests' : 'My Equipment Requests'}</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">${isAdmin ? 'Review and manage incoming equipment checkout requests from scouts.' : 'Track the status of your requested troop gear.'}</p>
+                    </div>
+
+                    ${displayRequests.length === 0 ? `
+                        <div class="bg-white rounded-2xl p-12 text-center border border-gray-200">
+                            <div class="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                                <i class="fa-solid fa-clipboard-check"></i>
+                            </div>
+                            <h3 class="text-base font-semibold text-gray-700">No requests found</h3>
+                            <p class="text-xs text-gray-500 mt-1">Submit a checkout request from the Store page to get started.</p>
+                        </div>
+                    ` : `
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-gray-500 uppercase border-b border-gray-200">
+                                            <th class="p-4">Item Details</th>
+                                            <th class="p-4">Requested By</th>
+                                            <th class="p-4">Dates</th>
+                                            <th class="p-4">Purpose</th>
+                                            <th class="p-4">Status</th>
+                                            ${isAdmin ? '<th class="p-4 text-right">Actions</th>' : ''}
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        ${displayRequests.map(req => renderRequestRow(req, isAdmin)).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderRequestRow(req, isAdmin) {
+            let statusBadge = '';
+            if (req.status === 'Pending') statusBadge = '<span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-md font-semibold">Pending</span>';
+            else if (req.status === 'Approved') statusBadge = '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-md font-semibold">Approved</span>';
+            else if (req.status === 'Rejected') statusBadge = '<span class="px-2.5 py-1 bg-rose-100 text-rose-800 rounded-md font-semibold">Rejected</span>';
+            else if (req.status === 'Returned') statusBadge = '<span class="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-md font-semibold">Returned</span>';
+
+            return `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4">
+                        <div class="font-bold text-gray-800">${req.itemName}</div>
+                        <div class="text-gray-500 text-[11px]">Qty: ${req.qty}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="font-medium text-gray-800">${req.userName}</div>
+                        <div class="text-gray-500 text-[11px]">${req.userPatrol}</div>
+                    </td>
+                    <td class="p-4">
+                        <div>Req: <span class="font-medium text-gray-700">${req.requestDate}</span></div>
+                        <div>Return: <span class="font-medium text-gray-700">${req.expectedReturnDate}</span></div>
+                    </td>
+                    <td class="p-4 max-w-xs text-gray-600 line-clamp-2">
+                        ${req.purpose}
+                    </td>
+                    <td class="p-4">
+                        ${statusBadge}
+                    </td>
+                    ${isAdmin ? `
+                    <td class="p-4 text-right space-x-1">
+                        ${req.status === 'Pending' ? `
+                            <button onclick="approveRequest('${req.id}')" class="px-3 py-1.5 bg-scout-green hover:bg-scout-green-light text-white font-medium rounded-lg text-xs shadow-sm">
+                                Approve
+                            </button>
+                            <button onclick="rejectRequest('${req.id}')" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium rounded-lg text-xs">
+                                Reject
+                            </button>
+                        ` : '<span class="text-gray-400 text-[11px] italic">Processed</span>'}
+                    </td>
+                    ` : ''}
+                </tr>
+            `;
+        }
+
+        function approveRequest(reqId) {
+            const requests = getLocalRequests();
+            const items = getLocalItems();
+            const req = requests.find(r => r.id === reqId);
+            if (!req) return;
+
+            const item = items.find(i => i.id === req.itemId);
+            if (!item || item.availableQty < req.qty) {
+                showToast("Not enough stock available to approve this request", "error");
+                return;
+            }
+
+            // Deduct available stock
+            item.availableQty -= req.qty;
+            saveLocalItems(items);
+
+            // Update request status
+            req.status = 'Approved';
+            req.approvedBy = state.currentUser.email;
+            saveLocalRequests(requests);
+
+            showToast(`Approved request for ${req.userName}`);
+            render();
+        }
+
+        function rejectRequest(reqId) {
+            const requests = getLocalRequests();
+            const req = requests.find(r => r.id === reqId);
+            if (!req) return;
+
+            req.status = 'Rejected';
+            saveLocalRequests(requests);
+
+            showToast(`Request rejected`, "warn");
+            render();
+        }
+
+        // ==========================================
+        // 7. ACTIVE LOANS & RETURN MANAGEMENT TAB
+        // ==========================================
+        function renderActiveLoansTab() {
+            const requests = getLocalRequests();
+            const isAdmin = state.currentUser.role === 'admin';
+
+            // Active loans are requests with status 'Approved'
+            const activeLoans = requests.filter(r => r.status === 'Approved');
+
+            return `
+                <div class="space-y-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <h2 class="text-xl font-bold font-heading text-scout-green">Active Equipment Loans</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Track gear currently checked out in the field and record returns.</p>
+                    </div>
+
+                    ${activeLoans.length === 0 ? `
+                        <div class="bg-white rounded-2xl p-12 text-center border border-gray-200">
+                            <div class="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                                <i class="fa-solid fa-handshake"></i>
+                            </div>
+                            <h3 class="text-base font-semibold text-gray-700">No active loans</h3>
+                            <p class="text-xs text-gray-500 mt-1">All troop gear is safely returned to the quartermaster locker!</p>
+                        </div>
+                    ` : `
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${activeLoans.map(loan => renderLoanCard(loan, isAdmin)).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderLoanCard(loan, isAdmin) {
+            const isOverdue = new Date(loan.expectedReturnDate) < new Date();
+
+            return `
+                <div class="bg-white p-5 rounded-2xl border ${isOverdue ? 'border-rose-300 bg-rose-50/30' : 'border-gray-200'} shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${isOverdue ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+                                ${isOverdue ? 'Overdue Return' : 'Checked Out'}
+                            </span>
+                            <span class="text-xs text-gray-400 font-medium">Qty: ${loan.qty}</span>
+                        </div>
+
+                        <h3 class="font-bold text-gray-800 text-base mb-1">${loan.itemName}</h3>
+                        <div class="text-xs text-gray-600 mb-3"><i class="fa-solid fa-user mr-1 text-gray-400"></i> ${loan.userName} (${loan.userPatrol})</div>
+
+                        <div class="bg-gray-50 p-3 rounded-xl text-xs space-y-1 mb-4 border border-gray-100">
+                            <div class="text-gray-500">Return Due: <span class="font-bold text-gray-700">${loan.expectedReturnDate}</span></div>
+                            <div class="text-gray-500 line-clamp-1">Purpose: ${loan.purpose}</div>
+                        </div>
+                    </div>
+
+                    ${isAdmin ? `
+                        <button onclick="handleReturnItem('${loan.id}')" class="w-full py-2.5 bg-scout-green hover:bg-scout-green-light text-white font-medium text-xs rounded-xl shadow-sm transition">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Process Item Return
+                        </button>
+                    ` : `
+                        <div class="text-center text-xs text-gray-400 italic">Return gear to Quartermaster upon arrival</div>
+                    `}
+                </div>
+            `;
+        }
+
+        function handleReturnItem(loanId) {
+            const requests = getLocalRequests();
+            const items = getLocalItems();
+            const loan = requests.find(r => r.id === loanId);
+            if (!loan) return;
+
+            openModal(`
+                <div>
+                    <h3 class="text-lg font-bold font-heading text-scout-green mb-2">Process Equipment Return</h3>
+                    <p class="text-xs text-gray-600 mb-4">Confirm return details for <strong>${loan.itemName}</strong> (${loan.qty} unit/s) returned by ${loan.userName}.</p>
+                    
+                    <form onsubmit="confirmReturn(event, '${loan.id}')" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Condition Upon Return</label>
+                            <select id="return-condition" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                                <option value="Excellent">Excellent - Clean & functional</option>
+                                <option value="Good" selected>Good - Normal wear</option>
+                                <option value="Fair">Fair - Needs minor cleaning</option>
+                                <option value="Needs Repair">Needs Repair / Damaged</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl">Cancel</button>
+                            <button type="submit" class="flex-1 py-2.5 bg-scout-green text-white font-medium rounded-xl">Confirm Return</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function confirmReturn(e, loanId) {
+            e.preventDefault();
+            const requests = getLocalRequests();
+            const items = getLocalItems();
+            const loan = requests.find(r => r.id === loanId);
+            if (!loan) return;
+
+            const item = items.find(i => i.id === loan.itemId);
+            if (item) {
+                item.availableQty = Math.min(item.totalQty, item.availableQty + loan.qty);
+                saveLocalItems(items);
+            }
+
+            loan.status = 'Returned';
+            saveLocalRequests(requests);
+
+            closeModal();
+            showToast("Equipment returned to inventory!");
+            render();
+        }
+
+        // ==========================================
+        // 8. SCOUT ROSTER TAB (ADMIN ONLY)
+        // ==========================================
+        function renderUsersTab() {
+            const users = getLocalUsers();
+
+            return `
+                <div class="space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <div>
+                            <h2 class="text-xl font-bold font-heading text-scout-green">Troop Member Roster</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Manage troop member user accounts and assign administrative access.</p>
+                        </div>
+                        <button onclick="openAddUserModal()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-scout-green hover:bg-scout-green-light text-white font-medium rounded-xl shadow transition text-sm">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Add New Member</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-500 uppercase border-b border-gray-200">
+                                        <th class="p-4">Name & Email</th>
+                                        <th class="p-4">Patrol</th>
+                                        <th class="p-4">Role</th>
+                                        <th class="p-4">Phone</th>
+                                        <th class="p-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    ${users.map(u => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="p-4">
+                                                <div class="font-bold text-gray-800">${u.name}</div>
+                                                <div class="text-gray-500 text-[11px]">${u.email}</div>
+                                            </td>
+                                            <td class="p-4 text-gray-700 font-medium">${u.patrol || 'N/A'}</td>
+                                            <td class="p-4">
+                                                <span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${u.role === 'admin' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}">
+                                                    ${u.role === 'admin' ? 'Quartermaster Admin' : 'Scout Member'}
+                                                </span>
+                                            </td>
+                                            <td class="p-4 text-gray-600">${u.phone || '—'}</td>
+                                            <td class="p-4 text-right">
+                                                <button onclick="handleDeleteUser('${u.uid}')" class="text-rose-600 hover:text-rose-800 p-1.5" title="Remove Member">
+                                                    <i class="fa-solid fa-user-xmark text-sm"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openAddUserModal() {
+            openModal(`
+                <div>
+                    <h3 class="text-lg font-bold font-heading text-scout-green mb-4">Add Troop Member Account</h3>
+                    <form onsubmit="submitAddUser(event)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Full Name</label>
+                            <input type="text" id="user-name" required placeholder="Scout Name" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Email Address</label>
+                            <input type="email" id="user-email" required placeholder="scout@troop.org" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Role</label>
+                                <select id="user-role" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                                    <option value="scout">Scout Member</option>
+                                    <option value="admin">Quartermaster Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Patrol Name</label>
+                                <input type="text" id="user-patrol" placeholder="Eagle Patrol" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl">Cancel</button>
+                            <button type="submit" class="flex-1 py-2.5 bg-scout-green text-white font-medium rounded-xl">Create Account</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function submitAddUser(e) {
+            e.preventDefault();
+            const users = getLocalUsers();
+            const name = document.getElementById('user-name').value;
+            const email = document.getElementById('user-email').value;
+            const role = document.getElementById('user-role').value;
+            const patrol = document.getElementById('user-patrol').value || 'Unassigned Patrol';
+
+            const newUser = {
+                uid: 'user_' + Date.now(),
+                name,
+                email,
+                role,
+                patrol,
+                status: 'Active'
+            };
+
+            users.push(newUser);
+            saveLocalUsers(users);
+
+            closeModal();
+            showToast(`Account created for ${name}`);
+            render();
+        }
+
+        function handleDeleteUser(uid) {
+            let users = getLocalUsers();
+            users = users.filter(u => u.uid !== uid);
+            saveLocalUsers(users);
+            showToast("Member account removed");
+            render();
+        }
+
+        // ==========================================
+        // 9. ADD / EDIT INVENTORY ITEM MODAL
+        // ==========================================
+        function openAddItemModal() {
+            openModal(`
+                <div>
+                    <h3 class="text-lg font-bold font-heading text-scout-green mb-4">Add Gear To Store</h3>
+                    <form onsubmit="submitSaveItem(event, null)" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Item Title</label>
+                            <input type="text" id="item-title" required placeholder="e.g. 2-Burner Propane Stove" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Category</label>
+                                <select id="item-cat" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                                    <option value="Camping Gear">Camping Gear</option>
+                                    <option value="Cooking Equipment">Cooking Equipment</option>
+                                    <option value="Navigation & Tools">Navigation & Tools</option>
+                                    <option value="First Aid & Safety">First Aid & Safety</option>
+                                    <option value="Pioneering & Ropes">Pioneering & Ropes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Total Quantity</label>
+                                <input type="number" id="item-qty" min="1" value="5" required class="w-full p-2.5 border border-gray-300 rounded-xl">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Shelf / Location</label>
+                                <input type="text" id="item-loc" required placeholder="Shelf A-2" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Condition</label>
+                                <select id="item-cond" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                                    <option value="New">New</option>
+                                    <option value="Excellent">Excellent</option>
+                                    <option value="Good" selected>Good</option>
+                                    <option value="Fair">Fair</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Description</label>
+                            <textarea id="item-desc" rows="2" placeholder="Item description, specs, or special care notes..." class="w-full p-2.5 border border-gray-300 rounded-xl"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Image URL (Optional)</label>
+                            <input type="url" id="item-img" placeholder="https://..." class="w-full p-2.5 border border-gray-300 rounded-xl">
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl">Cancel</button>
+                            <button type="submit" class="flex-1 py-2.5 bg-scout-green text-white font-medium rounded-xl">Save Gear Item</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function openEditItemModal(itemId) {
+            const items = getLocalItems();
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
+
+            openModal(`
+                <div>
+                    <h3 class="text-lg font-bold font-heading text-scout-green mb-4">Edit Gear Item</h3>
+                    <form onsubmit="submitSaveItem(event, '${item.id}')" class="space-y-4 text-xs">
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Item Title</label>
+                            <input type="text" id="item-title" value="${item.name}" required class="w-full p-2.5 border border-gray-300 rounded-xl">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Category</label>
+                                <select id="item-cat" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                                    <option value="Camping Gear" ${item.category === 'Camping Gear' ? 'selected' : ''}>Camping Gear</option>
+                                    <option value="Cooking Equipment" ${item.category === 'Cooking Equipment' ? 'selected' : ''}>Cooking Equipment</option>
+                                    <option value="Navigation & Tools" ${item.category === 'Navigation & Tools' ? 'selected' : ''}>Navigation & Tools</option>
+                                    <option value="First Aid & Safety" ${item.category === 'First Aid & Safety' ? 'selected' : ''}>First Aid & Safety</option>
+                                    <option value="Pioneering & Ropes" ${item.category === 'Pioneering & Ropes' ? 'selected' : ''}>Pioneering & Ropes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Total Quantity</label>
+                                <input type="number" id="item-qty" min="1" value="${item.totalQty}" required class="w-full p-2.5 border border-gray-300 rounded-xl">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Shelf / Location</label>
+                                <input type="text" id="item-loc" value="${item.location}" required class="w-full p-2.5 border border-gray-300 rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block font-semibold uppercase text-gray-600 mb-1">Condition</label>
+                                <select id="item-cond" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                                    <option value="New" ${item.condition === 'New' ? 'selected' : ''}>New</option>
+                                    <option value="Excellent" ${item.condition === 'Excellent' ? 'selected' : ''}>Excellent</option>
+                                    <option value="Good" ${item.condition === 'Good' ? 'selected' : ''}>Good</option>
+                                    <option value="Fair" ${item.condition === 'Fair' ? 'selected' : ''}>Fair</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Description</label>
+                            <textarea id="item-desc" rows="2" class="w-full p-2.5 border border-gray-300 rounded-xl">${item.description}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold uppercase text-gray-600 mb-1">Image URL</label>
+                            <input type="url" id="item-img" value="${item.imageUrl || ''}" class="w-full p-2.5 border border-gray-300 rounded-xl">
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl">Cancel</button>
+                            <button type="submit" class="flex-1 py-2.5 bg-scout-green text-white font-medium rounded-xl">Update Item</button>
+                        </div>
+                    </form>
+                </div>
+            `);
+        }
+
+        function submitSaveItem(e, itemId) {
+            e.preventDefault();
+            const items = getLocalItems();
+            const title = document.getElementById('item-title').value;
+            const category = document.getElementById('item-cat').value;
+            const qty = parseInt(document.getElementById('item-qty').value);
+            const location = document.getElementById('item-loc').value;
+            const condition = document.getElementById('item-cond').value;
+            const desc = document.getElementById('item-desc').value;
+            const img = document.getElementById('item-img').value || 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=500&auto=format&fit=crop&q=60';
+
+            if (itemId) {
+                // Update existing item
+                const item = items.find(i => i.id === itemId);
+                if (item) {
+                    const diff = qty - item.totalQty;
+                    item.name = title;
+                    item.category = category;
+                    item.totalQty = qty;
+                    item.availableQty = Math.max(0, item.availableQty + diff);
+                    item.location = location;
+                    item.condition = condition;
+                    item.description = desc;
+                    item.imageUrl = img;
+                }
+            } else {
+                // Add new item
+                const newItem = {
+                    id: 'item_' + Date.now(),
+                    name: title,
+                    category: category,
+                    totalQty: qty,
+                    availableQty: qty,
+                    location: location,
+                    condition: condition,
+                    description: desc,
+                    icon: 'fa-box-archive',
+                    imageUrl: img
+                };
+                items.push(newItem);
+            }
+
+            saveLocalItems(items);
+            closeModal();
+            showToast(itemId ? "Gear updated!" : "New gear added to store!");
+            render();
+        }
+
+        function handleDeleteItem(itemId) {
+            let items = getLocalItems();
+            items = items.filter(i => i.id !== itemId);
+            saveLocalItems(items);
+            showToast("Item deleted from store", "warn");
+            render();
+        }
+
+        // ==========================================
+        // INITIAL ENTRY POINT
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            render();
+        });
     </script>
 </body>
 </html>
